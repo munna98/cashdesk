@@ -1,0 +1,18 @@
+{
+    "appId": "com.cashflowdesk.app",
+    "productName": "CashFlow Desk",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "out/**/*"
+    ],
+    "win": {
+      "target": "nsis"
+    },
+    "mac": {
+      "target": "dmg"
+    }
+  }
+  

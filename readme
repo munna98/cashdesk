@@ -1,0 +1,50 @@
+cashflow-desk/
+├── public/                      # Static assets (logo, icons, etc.)
+│
+├── styles/
+│   ├── globals.css              # Tailwind base styles
+│   └── tailwind.config.js       # Tailwind theme config
+│
+├── components/                 # Reusable UI components
+│   ├── layout/
+│   │   ├── Sidebar.tsx          # Sidebar nav (Dashboard, Agents, etc.)
+│   │   ├── Header.tsx           # Top bar or app name
+│   │   └── Layout.tsx           # Page wrapper layout
+│   │
+│   ├── dashboard/
+│   │   ├── SummaryCards.tsx     # Top-level stats cards (Commission, etc.)
+│   │   └── AgentCard.tsx        # Expandable agent summary
+│   │
+│   ├── forms/
+│   │   ├── ReceiptForm.tsx      # Add receipt
+│   │   └── PaymentForm.tsx      # Add payment
+│   │
+│   └── ui/                      # Tiny UI components (Button, Input etc.)
+│       ├── Button.tsx
+│       └── Input.tsx
+│
+├── pages/                      # Next.js page routes
+│   ├── index.tsx                # Redirects to dashboard
+│   ├── dashboard.tsx            # Dashboard with agent summary
+│   ├── receipts.tsx             # Page for receipt entries
+│   ├── payments.tsx             # Page for payment entries
+│   ├── agents.tsx               # Agent list & management
+│   └── recipients.tsx           # Recipient list & management
+│
+├── data/                       # Static dummy JSON data (for now)
+│   ├── agents.ts                # Sample agents
+│   ├── receipts.ts              # Sample receipts
+│   └── payments.ts              # Sample payments
+│
+├── utils/                      # Helper functions
+│   ├── balance.ts               # Calculate daily opening/closing
+│   └── date.ts                  # Format date utils
+│
+├── lib/                        # DB client & API helpers (used later)
+│   └── mongodb.ts
+│
+├── main.js                     # Electron entry file
+├── electron-builder.json       # Electron build config
+├── tsconfig.json
+├── package.json
+└── README.md
