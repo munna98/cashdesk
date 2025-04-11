@@ -1,35 +1,65 @@
-import { useState } from "react"
-import { agents } from "@/data/agents"
-import { BanknotesIcon, CalendarIcon, UserCircleIcon } from "@heroicons/react/24/outline"
+import { useState, useEffect } from "react";
+import axios from "axios";
+import {
+  BanknotesIcon,
+  CalendarIcon,
+  UserCircleIcon,
+  PencilSquareIcon,
+} from "@heroicons/react/24/outline";
+
+interface Agent {
+  _id: string;
+  name: string;
+}
 
 export default function ReceiptForm() {
-  const [agentId, setAgentId] = useState("")
-  const [amount, setAmount] = useState("")
-  const [commission, setCommission] = useState("")
-  const [date, setDate] = useState(new Date().toISOString().split("T")[0])
+  const [agents, setAgents] = useState<Agent[]>([]);
+  const [agentId, setAgentId] = useState("");
+  const [amount, setAmount] = useState("");
+  const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
+  const [note, setNote] = useState("");
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
+  // Load agents from backend
+  useEffect(() => {
+    axios
+      .get("/api/agents")
+      .then((res) => setAgents(res.data))
+      .catch((err) => console.error("Failed to load agents", err));
+  }, []);
+
+  // Submit receipt to backend
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
     const receipt = {
       agentId,
       amount: Number(amount),
-      commission: Number(commission || 0),
       date,
-    }
-    console.log("Receipt saved:", receipt)
-    alert("Receipt saved!")
+      note,
+    };
 
-    setAgentId("")
-    setAmount("")
-    setCommission("")
-    setDate(new Date().toISOString().split("T")[0])
-  }
+    try {
+      const res = await axios.post("/api/receipts", receipt);
+      console.log("Receipt saved:", res.data);
+      alert("Receipt saved successfully!");
+
+      // Reset form
+      setAgentId("");
+      setAmount("");
+      setNote("");
+      setDate(new Date().toISOString().split("T")[0]);
+    } catch (error) {
+      console.error("Error saving receipt:", error);
+      alert("Failed to save receipt.");
+    }
+  };
 
   return (
     <form
       onSubmit={handleSubmit}
       className="max-w-xl mx-auto bg-white p-6 rounded-lg shadow space-y-6 border border-gray-200"
     >
+      {/* Agent Select */}
       <div className="space-y-1">
         <label className="block text-sm font-medium text-gray-700">Agent</label>
         <div className="relative">
@@ -42,7 +72,7 @@ export default function ReceiptForm() {
           >
             <option value="">-- Select Agent --</option>
             {agents.map((agent) => (
-              <option key={agent.id} value={agent.id}>
+              <option key={agent._id} value={agent._id}>
                 {agent.name}
               </option>
             ))}
@@ -50,6 +80,7 @@ export default function ReceiptForm() {
         </div>
       </div>
 
+      {/* Amount */}
       <div className="space-y-1">
         <label className="block text-sm font-medium text-gray-700">Amount Received</label>
         <div className="relative">
@@ -65,20 +96,7 @@ export default function ReceiptForm() {
         </div>
       </div>
 
-      <div className="space-y-1">
-        <label className="block text-sm font-medium text-gray-700">Commission (Optional)</label>
-        <div className="relative">
-          <BanknotesIcon className="h-5 w-5 absolute top-2.5 left-3 text-gray-400" />
-          <input
-            type="number"
-            value={commission}
-            onChange={(e) => setCommission(e.target.value)}
-            className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
-            placeholder="Enter commission"
-          />
-        </div>
-      </div>
-
+      {/* Date */}
       <div className="space-y-1">
         <label className="block text-sm font-medium text-gray-700">Date</label>
         <div className="relative">
@@ -92,6 +110,22 @@ export default function ReceiptForm() {
         </div>
       </div>
 
+      {/* Note */}
+      <div className="space-y-1">
+        <label className="block text-sm font-medium text-gray-700">Note</label>
+        <div className="relative">
+          <PencilSquareIcon className="h-5 w-5 absolute top-2.5 left-3 text-gray-400" />
+          <input
+            type="text"
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            placeholder="Optional note"
+            className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+          />
+        </div>
+      </div>
+
+      {/* Submit Button */}
       <div className="pt-4">
         <button
           type="submit"
@@ -101,5 +135,5 @@ export default function ReceiptForm() {
         </button>
       </div>
     </form>
-  )
+  );
 }

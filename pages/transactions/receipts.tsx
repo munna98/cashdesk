@@ -1,6 +1,6 @@
 import Layout from "@/components/layout/Layout"
 import ReceiptForm from "@/components/transactions/ReceiptForm"
-import RecentReceipts from "./RecentReceipts"
+import RecentReceipts from "./recentReceipts"
 
 export default function ReceiptEntryPage() {
   return (

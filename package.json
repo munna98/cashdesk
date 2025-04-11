@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",
+    "axios": "^1.8.4",
     "classnames": "^2.5.1",
     "concurrently": "^9.1.2",
     "mongodb": "^6.15.0",
