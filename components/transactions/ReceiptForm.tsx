@@ -7,44 +7,46 @@ import {
   PencilSquareIcon,
 } from "@heroicons/react/24/outline";
 
-interface Agent {
+interface AgentAccount {
   _id: string;
   name: string;
+  linkedEntityId: string; // if you need to trace back to the actual agent
 }
 
+
 export default function ReceiptForm() {
-  const [agents, setAgents] = useState<Agent[]>([]);
-  const [agentId, setAgentId] = useState("");
+  const [agentAccounts, setAgentAccounts] = useState<AgentAccount[]>([]);
+  const [accountId, setAccountId] = useState("");
   const [amount, setAmount] = useState("");
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
   const [note, setNote] = useState("");
+  const [type, setType] = useState("receipt");
 
   // Load agents from backend
   useEffect(() => {
     axios
-      .get("/api/agents")
-      .then((res) => setAgents(res.data))
-      .catch((err) => console.error("Failed to load agents", err));
+      .get("/api/accounts?type=agent")
+      .then((res) => setAgentAccounts(res.data))
+      .catch((err) => console.error("Failed to load accounts", err));
   }, []);
-
   // Submit receipt to backend
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+
     const receipt = {
-      agentId,
+      accountId,
       amount: Number(amount),
       date,
       note,
-    };
+      type,
+    };  
 
     try {
-      const res = await axios.post("/api/receipts", receipt);
+      const res = await axios.post("/api/transactions", receipt);
       console.log("Receipt saved:", res.data);
       alert("Receipt saved successfully!");
-
-      // Reset form
-      setAgentId("");
+      setAccountId("");
       setAmount("");
       setNote("");
       setDate(new Date().toISOString().split("T")[0]);
@@ -61,19 +63,19 @@ export default function ReceiptForm() {
     >
       {/* Agent Select */}
       <div className="space-y-1">
-        <label className="block text-sm font-medium text-gray-700">Agent</label>
+        <label className="block text-sm font-medium text-gray-700">Agent Account</label>
         <div className="relative">
           <UserCircleIcon className="h-5 w-5 absolute top-2.5 left-3 text-gray-400" />
           <select
-            value={agentId}
-            onChange={(e) => setAgentId(e.target.value)}
+            value={accountId}
+            onChange={(e) => setAccountId(e.target.value)}
             required
             className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
           >
-            <option value="">-- Select Agent --</option>
-            {agents.map((agent) => (
-              <option key={agent._id} value={agent._id}>
-                {agent.name}
+            <option value="">-- Select Agent Account --</option>
+            {agentAccounts.map((acc) => (
+              <option key={acc._id} value={acc._id}>
+                {acc.name}
               </option>
             ))}
           </select>

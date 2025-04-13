@@ -1,7 +1,7 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import dbConnect from "@/lib/mongodb";
-import Receipt from "@/models/Receipt";
-import { IReceipt } from "@/types/receipt";
+import Receipt from "@/models/Transaction";
+import { IReceipt } from "@/types/transaction";
 
 export default async function handler(
   req: NextApiRequest,

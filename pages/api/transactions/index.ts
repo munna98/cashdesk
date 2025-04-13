@@ -1,7 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import dbConnect from "@/lib/mongodb";
-import Receipt from "@/models/Receipt";
-import { IReceipt } from "@/types/receipt";
+import Transaction from "@/models/Transaction";
+import { ITransaction } from "@/types/transaction";
 
 export default async function handler(
   req: NextApiRequest,
@@ -12,28 +12,29 @@ export default async function handler(
   switch (req.method) {
     case "GET":
       try {
-        const receipts: IReceipt[] = await Receipt.find().populate("agentId", "name");
-        return res.status(200).json(receipts);
+        const transactions: ITransaction[] = await Transaction.find().populate("accountId", "name");
+        return res.status(200).json(transactions);
       } catch (error: any) {
         return res.status(500).json({ error: error.message });
       }
 
     case "POST":
       try {
-        const { agentId, amount, date, note } = req.body;
+        const { accountId, amount, date, note, type } = req.body;
 
-        if (!agentId || !amount || !date) {
+        if (!accountId || !amount || !date) {
           return res.status(400).json({ message: "Missing required fields" });
         }
 
-        const newReceipt: IReceipt = await Receipt.create({
-          agentId,
+        const newTransaction: ITransaction = await Transaction.create({
+          accountId,
           amount,
           date,
           note,
+          type,
         });
 
-        return res.status(201).json(newReceipt);
+        return res.status(201).json(newTransaction);
       } catch (error: any) {
         return res.status(500).json({ error: error.message });
       }

@@ -1,6 +1,6 @@
 import { Types } from "mongoose";
 
-export interface IReceipt {
+export interface ITransaction {
   _id?: Types.ObjectId;
   agentId: Types.ObjectId | {
     _id: Types.ObjectId;

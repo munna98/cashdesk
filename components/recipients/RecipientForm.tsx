@@ -1,16 +1,80 @@
-
-import { useState } from "react"
+import { useState, useEffect } from "react";
+import { useRouter } from "next/router";
+import axios from "axios";
 
 export default function RecipientForm() {
-  const [name, setName] = useState("")
-  const [openingBalance, setOpeningBalance] = useState("")
-  const [address, setAddress] = useState("")
-  const [mobile, setMobile] = useState("")
-  const [email, setEmail] = useState("")
+  const router = useRouter();
+  const { id } = router.query;
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    alert(`Recipient Added:\n${name}, ₹${openingBalance}, ${address}, ${mobile}, ${email}`)
+  const [form, setForm] = useState({
+    name: "",
+    address: "",
+    mobile: "",
+    email: "",
+    openingBalance: "",
+  });
+
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    if (id) {
+      axios.get(`/api/recipients/${id}`)
+        .then((res) => {
+          const data = res.data;
+          setForm({
+            name: data.name || "",
+            address: data.address || "",
+            mobile: data.mobile || "",
+            email: data.email || "",
+            openingBalance: data.openingBalance?.toString() || "",
+          });
+        })
+        .catch((err) => {
+          console.error("Failed to load recipient:", err);
+          alert("Failed to load recipient data.");
+        })
+        .finally(() => setIsLoading(false));
+    } else {
+      setIsLoading(false);
+    }
+  }, [id]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    setForm({ ...form, [e.target.name]: e.target.value });
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const payload = {
+        ...form,
+        openingBalance: Number(form.openingBalance),
+      };
+
+      if (id) {
+        await axios.put(`/api/recipients/${id}`, payload);
+        alert("Recipient updated!");
+      } else {
+        await axios.post("/api/recipients", payload);
+        alert("Recipient created!");
+        setForm({
+          name: "",
+          address: "",
+          mobile: "",
+          email: "",
+          openingBalance: "",
+        });
+      }
+
+      router.push("/recipients");
+    } catch (error) {
+      console.error("Error saving recipient:", error);
+      alert("Failed to save recipient.");
+    }
+  };
+
+  if (isLoading) {
+    return <div className="text-center py-8 text-gray-600">Loading form...</div>;
   }
 
   return (
@@ -18,75 +82,74 @@ export default function RecipientForm() {
       onSubmit={handleSubmit}
       className="max-w-2xl mx-auto bg-white dark:bg-gray-800 p-6 rounded-lg shadow space-y-5"
     >
-      <h2 className="text-xl font-semibold text-gray-800 dark:text-white mb-2">Add New Recipient</h2>
+      <h2 className="text-xl font-semibold text-gray-800 dark:text-white mb-2">
+        {id ? "Edit Recipient" : "Add New Recipient"}
+      </h2>
 
-      {/* Grid layout for inputs */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Recipient Name</label>
+          <label className="block font-medium">Name</label>
           <input
-            type="text"
-            value={name}
-            onChange={e => setName(e.target.value)}
-            className="w-full mt-1 px-3 py-2 border rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            name="name"
+            value={form.name}
+            onChange={handleChange}
+            className="w-full border border-gray-300 p-2 rounded"
             required
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Opening Balance</label>
+          <label className="block font-medium">Opening Balance</label>
           <input
             type="number"
-            value={openingBalance}
-            onChange={e => setOpeningBalance(e.target.value)}
-            className="w-full mt-1 px-3 py-2 border rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            name="openingBalance"
+            value={form.openingBalance}
+            onChange={handleChange}
+            className="w-full border border-gray-300 p-2 rounded"
             required
           />
         </div>
 
         <div className="sm:col-span-2">
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Address</label>
+          <label className="block font-medium">Address</label>
           <textarea
-            value={address}
-            onChange={e => setAddress(e.target.value)}
-            className="w-full mt-1 px-3 py-2 border rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            name="address"
+            value={form.address}
+            onChange={handleChange}
             rows={2}
+            className="w-full border border-gray-300 p-2 rounded"
             required
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Mobile</label>
+          <label className="block font-medium">Mobile</label>
           <input
-            type="tel"
-            value={mobile}
-            onChange={e => setMobile(e.target.value)}
-            className="w-full mt-1 px-3 py-2 border rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            required
+            name="mobile"
+            value={form.mobile}
+            onChange={handleChange}
+            className="w-full border border-gray-300 p-2 rounded"
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Email</label>
+          <label className="block font-medium">Email</label>
           <input
             type="email"
-            value={email}
-            onChange={e => setEmail(e.target.value)}
-            className="w-full mt-1 px-3 py-2 border rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            required
+            name="email"
+            value={form.email}
+            onChange={handleChange}
+            className="w-full border border-gray-300 p-2 rounded"
           />
         </div>
-
       </div>
 
-      <div className="pt-4">
-        <button
-          type="submit"
-          className="bg-blue-700 hover:bg-blue-800 text-white font-semibold px-5 py-2 rounded shadow"
-        >
-          Save Recipient
-        </button>
-      </div>
+      <button
+        type="submit"
+        className="bg-blue-700 text-white px-4 py-2 rounded hover:bg-blue-800"
+      >
+        {id ? "Update Recipient" : "Save Recipient"}
+      </button>
     </form>
-  )
+  );
 }
