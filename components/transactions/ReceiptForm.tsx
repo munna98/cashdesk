@@ -13,8 +13,11 @@ interface AgentAccount {
   linkedEntityId: string; // if you need to trace back to the actual agent
 }
 
+interface ReceiptFormProps {
+  onReceiptSaved?: () => void;
+}
 
-export default function ReceiptForm() {
+export default function ReceiptForm({ onReceiptSaved }: ReceiptFormProps) {
   const [agentAccounts, setAgentAccounts] = useState<AgentAccount[]>([]);
   const [accountId, setAccountId] = useState("");
   const [amount, setAmount] = useState("");
@@ -46,10 +49,13 @@ export default function ReceiptForm() {
       const res = await axios.post("/api/transactions", receipt);
       console.log("Receipt saved:", res.data);
       alert("Receipt saved successfully!");
+      // Reset form
       setAccountId("");
       setAmount("");
       setNote("");
       setDate(new Date().toISOString().split("T")[0]);
+      // trigger refresh
+      if (onReceiptSaved) onReceiptSaved();
     } catch (error) {
       console.error("Error saving receipt:", error);
       alert("Failed to save receipt.");

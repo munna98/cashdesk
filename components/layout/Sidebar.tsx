@@ -3,8 +3,10 @@ import { useRouter } from 'next/router'
 import classNames from 'classnames'
 import {
   HomeIcon,
-  ReceiptRefundIcon,
-  CurrencyDollarIcon,
+  // ReceiptRefundIcon,
+  ArrowUpTrayIcon,
+  ArrowDownTrayIcon,
+  // CurrencyDollarIcon,
   UserGroupIcon,
   UserIcon,
   UserCircleIcon,
@@ -16,8 +18,8 @@ import {
 
 const navItems = [
   { label: "Dashboard", href: "/dashboard", icon: HomeIcon },
-  { label: "Receipts", href: "/transactions/receipts", icon: ReceiptRefundIcon },
-  { label: "Payments", href: "/transactions/payments", icon: CurrencyDollarIcon },
+  { label: "Receipts", href: "/transactions/receipts", icon: ArrowDownTrayIcon},
+  { label: "Payments", href: "/transactions/payments", icon: ArrowUpTrayIcon },
   { label: "Agents", href: "/agents", icon: UserGroupIcon },
   { label: "Recipients", href: "/recipients", icon: UserIcon },
   { label: "Employees", href: "/employees", icon: UserCircleIcon },
@@ -33,7 +35,7 @@ export default function Sidebar() {
   return (
     <aside className="w-64 bg-[#000022] text-white h-full flex flex-col">
       <div className="p-5 text-xl font-bold tracking-wide border-b border-white/20">
-        CashFlow Desk
+        Cash Desk
       </div>
       <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
         {navItems.map(({ label, href, icon: Icon }) => (
