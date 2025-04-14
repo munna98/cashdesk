@@ -18,14 +18,14 @@ import {
 
 const navItems = [
   { label: "Dashboard", href: "/dashboard", icon: HomeIcon },
-  { label: "Receipts", href: "/transactions/receipts", icon: ArrowDownTrayIcon},
-  { label: "Payments", href: "/transactions/payments", icon: ArrowUpTrayIcon },
+  { label: "Receipts", href: "/transactions/receipts/receipts", icon: ArrowDownTrayIcon},
+  { label: "Payments", href: "/transactions/payments/payments", icon: ArrowUpTrayIcon },
   { label: "Agents", href: "/agents", icon: UserGroupIcon },
   { label: "Recipients", href: "/recipients", icon: UserIcon },
   { label: "Employees", href: "/employees", icon: UserCircleIcon },
   { label: "Accounts", href: "/accounts", icon: BanknotesIcon },
-  { label: "Reports", href: "/reports", icon: ChartBarIcon },
-  { label: "Settings", href: "/settings", icon: Cog6ToothIcon },
+  { label: "Reports", href: "/under-construction", icon: ChartBarIcon },
+  { label: "Settings", href: "/under-construction", icon: Cog6ToothIcon },
   { label: "Help", href: "/help", icon: QuestionMarkCircleIcon },
 ]
 

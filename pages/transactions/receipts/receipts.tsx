@@ -1,7 +1,7 @@
 import { useState } from "react";
 import Layout from "@/components/layout/Layout";
 import ReceiptForm from "@/components/transactions/ReceiptForm";
-import RecentReceipts from "./recentReceipts";
+import RecentReceipts from "./recent-receipts";
 
 export default function ReceiptEntryPage() {
   const [refreshCount, setRefreshCount] = useState(0);

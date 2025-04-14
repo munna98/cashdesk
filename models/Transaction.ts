@@ -1,10 +1,17 @@
+
+
 // import mongoose, { Schema, model, models } from "mongoose";
 
-// const receiptSchema = new Schema(
+// const transactionSchema = new Schema(
 //   {
-//     agentId: {
+//     accountId: {
 //       type: Schema.Types.ObjectId,
-//       ref: "Agent",
+//       ref: "Account",
+//       required: true,
+//     },
+//     type: {
+//       type: String, 
+//       enum: ["receipt", "payment"],
 //       required: true,
 //     },
 //     amount: {
@@ -25,12 +32,19 @@
 //   }
 // );
 
-// const Receipt = models.Receipt || model("Receipt", receiptSchema);
-// export default Receipt;
+// const Transaction = models.Transaction || model("Transaction", transactionSchema);
+// export default Transaction;
+
 
 import mongoose, { Schema, model, models } from "mongoose";
+
 const transactionSchema = new Schema(
   {
+    transactionNumber: {
+      type: String,
+      required: true,
+      unique: true,
+    },
     accountId: {
       type: Schema.Types.ObjectId,
       ref: "Account",
