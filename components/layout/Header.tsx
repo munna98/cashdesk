@@ -1,3 +1,4 @@
+
 // Header.tsx
 import { useState } from "react"
 import {
@@ -18,10 +19,18 @@ export default function Header({ onMenuClick }: { onMenuClick: () => void }) {
   }
   
   return (
-    <header className="bg-white dark:bg-gray-900 shadow px-6 py-3 flex justify-between items-center">
-      {/* Left: App Title */}
-      <div className="flex items-center">
-        <h1 className="text-xl font-semibold text-gray-800 dark:text-white">
+    <header className="bg-white dark:bg-gray-900 shadow px-4 md:px-6 py-3 flex justify-between items-center">
+      {/* Left: Menu Button (Mobile) and App Title */}
+      <div className="flex items-center gap-3">
+        <button 
+          className="md:hidden p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700"
+          onClick={onMenuClick}
+          aria-label="Open menu"
+        >
+          <Bars3Icon className="h-5 w-5 text-gray-600 dark:text-white" />
+        </button>
+        
+        <h1 className="text-lg md:text-xl font-semibold text-gray-800 dark:text-white truncate">
           Welcome back...
         </h1>
       </div>
