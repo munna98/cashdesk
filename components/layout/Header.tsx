@@ -20,7 +20,7 @@ export default function Header() {
       {/* Left: App Title */}
       <div className="flex items-center">
         <h1 className="text-xl font-semibold text-gray-800 dark:text-white">
-          Wellcome back...
+          Welcome back...
         </h1>
       </div>
       
