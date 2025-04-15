@@ -4,7 +4,7 @@ const AccountSchema = new mongoose.Schema({
   name: { type: String, required: true },
   type: {
     type: String,
-    enum: ['agent', 'recipient', 'cash', 'income', 'employee', 'expense', 'other'],
+    enum: ['agent', 'recipient', 'cash', 'income', 'employee', 'expense'],
     required: true
   },
   linkedEntityType: {

@@ -18,20 +18,21 @@ export default function PaymentEntryPage() {
           Payment Entry
         </h1>
 
-        {/* <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 items-start"> */}
-        {/* Payment Form */}
-        <div>
-          <PaymentForm onPaymentSaved={handlePaymentSaved} />
-        </div>
+        {/* Responsive grid layout */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 items-start">
+          {/* Payment Form */}
+          <div>
+            <PaymentForm onPaymentSaved={handlePaymentSaved} />
+          </div>
 
-        {/* Recent Payments */}
-        <div className="bg-gray-50 p-4 md:p-6 rounded-lg shadow-md border border-gray-200 mt-4 md:mt-0">
-          <h2 className="text-base md:text-lg font-semibold mb-3 md:mb-4">
-            Recent Payments
-          </h2>
-          <RecentPayments refreshTrigger={refreshCount} />
+          {/* Recent Payments */}
+          <div className="bg-gray-50 p-4 md:p-6 rounded-lg shadow-md border border-gray-200">
+            <h2 className="text-base md:text-lg font-semibold mb-3 md:mb-4">
+              Recent Payments
+            </h2>
+            <RecentPayments refreshTrigger={refreshCount} />
+          </div>
         </div>
-        {/* </div> */}
       </div>
     </Layout>
   );
