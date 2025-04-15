@@ -108,22 +108,24 @@ export default function AccountList() {
 
   return (
     <div>
-  {/* Top Filter Tabs */}
-  <div className="mb-4 flex gap-2 overflow-x-auto">
-    {ACCOUNT_TYPES.map((type) => (
-      <button
-        key={type}
-        onClick={() => setActiveTab(type)}
-        className={`px-3 sm:px-4 py-1 sm:py-1.5 rounded-full text-xs sm:text-sm border flex-shrink-0 ${
-          activeTab === type
-            ? "bg-blue-600 text-white border-blue-600"
-            : "bg-white text-gray-600 border-gray-300 hover:bg-gray-50"
-        }`}
-      >
-        {type === "all" ? "All" : type.charAt(0).toUpperCase() + type.slice(1)}
-      </button>
-    ))}
-  </div>
+      {/* Top Filter Tabs */}
+      <div className="mb-4 flex gap-3 overflow-x-auto scrollbar-hide">
+        {ACCOUNT_TYPES.map((type) => (
+          <button
+            key={type}
+            onClick={() => setActiveTab(type)}
+            className={`px-4 py-1 rounded-full text-sm sm:text-base border flex-shrink-0 ${
+              activeTab === type
+                ? "bg-blue-600 text-white border-blue-600"
+                : "bg-white text-gray-600 border-gray-300 hover:bg-gray-50"
+            }`}
+          >
+            {type === "all"
+              ? "All"
+              : type.charAt(0).toUpperCase() + type.slice(1)}
+          </button>
+        ))}
+      </div>
 
       {/* Accounts Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
