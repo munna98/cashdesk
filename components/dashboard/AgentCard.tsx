@@ -26,7 +26,8 @@ export default function AgentCard({
   return (
     // <div className="bg-white dark:bg-gray-800 p-5 rounded-lg shadow hover:shadow-md transition-shadow duration-300 w-full h-full border border-gray-100 dark:border-gray-700">
     <div className="bg-white p-5 rounded-lg shadow hover:shadow-md transition-shadow duration-300 w-full h-full border border-gray-100 ">
-      <h2 className="text-lg font-semibold text-gray-800 dark:text-white mb-3 flex items-center">
+      {/* <h2 className="text-lg font-semibold text-gray-800 dark:text-white mb-3 flex items-center"> */}
+      <h2 className="text-lg font-semibold text-gray-800 mb-3 flex items-center">
         <span className="inline-block w-2 h-6 bg-blue-500 rounded-sm mr-2"></span>
         {name}
       </h2>
