@@ -36,14 +36,13 @@
 //   const handleSubmit = async (e: React.FormEvent) => {
 //     e.preventDefault();
 
-
 //     const receipt = {
 //       accountId,
 //       amount: Number(amount),
 //       date,
 //       note,
 //       type,
-//     };  
+//     };
 
 //     try {
 //       const res = await axios.post("/api/transactions", receipt);
@@ -146,7 +145,6 @@
 //   );
 // }
 
-
 import { useState, useEffect } from "react";
 import axios from "axios";
 import {
@@ -178,7 +176,9 @@ export default function ReceiptForm({ onReceiptSaved }: ReceiptFormProps) {
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
   const [note, setNote] = useState("");
   const [type, setType] = useState("receipt");
-  const [savedReceipt, setSavedReceipt] = useState<SavedReceiptInfo | null>(null);
+  const [savedReceipt, setSavedReceipt] = useState<SavedReceiptInfo | null>(
+    null
+  );
 
   // Load agents from backend
   useEffect(() => {
@@ -187,7 +187,7 @@ export default function ReceiptForm({ onReceiptSaved }: ReceiptFormProps) {
       .then((res) => setAgentAccounts(res.data))
       .catch((err) => console.error("Failed to load accounts", err));
   }, []);
-  
+
   // Submit receipt to backend
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -198,24 +198,24 @@ export default function ReceiptForm({ onReceiptSaved }: ReceiptFormProps) {
       date,
       note,
       type,
-    };  
+    };
 
     try {
       const res = await axios.post("/api/transactions", receipt);
       console.log("Receipt saved:", res.data);
-      
+
       // Store the transaction number for display
       setSavedReceipt({
         transactionNumber: res.data.transactionNumber,
-        amount: res.data.amount
+        amount: res.data.amount,
       });
-      
+
       // Reset form
       setAccountId("");
       setAmount("");
       setNote("");
       setDate(new Date().toISOString().split("T")[0]);
-      
+
       // trigger refresh
       if (onReceiptSaved) onReceiptSaved();
     } catch (error) {
@@ -231,7 +231,8 @@ export default function ReceiptForm({ onReceiptSaved }: ReceiptFormProps) {
         <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg text-green-800">
           <p className="font-medium">Receipt saved successfully!</p>
           <p className="text-sm">
-            Transaction #{savedReceipt.transactionNumber} for ₹{savedReceipt.amount.toFixed(2)} has been recorded.
+            Transaction #{savedReceipt.transactionNumber} for ₹
+            {savedReceipt.amount.toFixed(2)} has been recorded.
           </p>
         </div>
       )}
@@ -240,9 +241,14 @@ export default function ReceiptForm({ onReceiptSaved }: ReceiptFormProps) {
         onSubmit={handleSubmit}
         className="bg-white p-6 rounded-lg shadow space-y-6 border border-gray-200"
       >
+        <h2 className="text-base md:text-lg font-semibold mb-3 md:mb-4">
+          Enter New Receipt
+        </h2>
         {/* Agent Select */}
         <div className="space-y-1">
-          <label className="block text-sm font-medium text-gray-700">Agent Account</label>
+          <label className="block text-sm font-medium text-gray-700">
+            Agent Account
+          </label>
           <div className="relative">
             <UserCircleIcon className="h-5 w-5 absolute top-2.5 left-3 text-gray-400" />
             <select
@@ -263,7 +269,9 @@ export default function ReceiptForm({ onReceiptSaved }: ReceiptFormProps) {
 
         {/* Amount */}
         <div className="space-y-1">
-          <label className="block text-sm font-medium text-gray-700">Amount Received</label>
+          <label className="block text-sm font-medium text-gray-700">
+            Amount Received
+          </label>
           <div className="relative">
             <BanknotesIcon className="h-5 w-5 absolute top-2.5 left-3 text-gray-400" />
             <input
@@ -279,7 +287,9 @@ export default function ReceiptForm({ onReceiptSaved }: ReceiptFormProps) {
 
         {/* Date */}
         <div className="space-y-1">
-          <label className="block text-sm font-medium text-gray-700">Date</label>
+          <label className="block text-sm font-medium text-gray-700">
+            Date
+          </label>
           <div className="relative">
             <CalendarIcon className="h-5 w-5 absolute top-2.5 left-3 text-gray-400" />
             <input
@@ -293,7 +303,9 @@ export default function ReceiptForm({ onReceiptSaved }: ReceiptFormProps) {
 
         {/* Note */}
         <div className="space-y-1">
-          <label className="block text-sm font-medium text-gray-700">Note</label>
+          <label className="block text-sm font-medium text-gray-700">
+            Note
+          </label>
           <div className="relative">
             <PencilSquareIcon className="h-5 w-5 absolute top-2.5 left-3 text-gray-400" />
             <input

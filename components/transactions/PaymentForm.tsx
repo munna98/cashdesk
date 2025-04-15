@@ -92,6 +92,9 @@ export default function PaymentForm({ onPaymentSaved }: PaymentFormProps) {
         onSubmit={handleSubmit}
         className="bg-white p-6 rounded-lg shadow space-y-6 border border-gray-200"
       >
+                <h2 className="text-base md:text-lg font-semibold mb-3 md:mb-4">
+          Enter New Receipt
+        </h2>
         {/* Account Select */}
         <div className="space-y-1">
           <label className="block text-sm font-medium text-gray-700">Account</label>

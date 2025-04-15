@@ -314,7 +314,7 @@ export default function AgentForm() {
       className="max-w-2xl mx-auto bg-white  p-6 rounded-lg shadow space-y-5"
     >
       {/* <h2 className="text-xl font-semibold text-gray-800 dark:text-white mb-2"> */}
-      <h2 className="text-xl font-semibold text-gray-800  mb-2">
+      <h2 className="text-base md:text-lg font-semibold mb-3 md:mb-4">
         {id ? "Edit Agent" : "Add New Agent"}
       </h2>
 
