@@ -107,20 +107,20 @@ export default function AccountList() {
     <div>
       {/* Top Filter Tabs */}
       <div className="mb-4 flex flex-wrap gap-2">
-        {ACCOUNT_TYPES.map((type) => (
-          <button
-            key={type}
-            onClick={() => setActiveTab(type)}
-            className={`px-4 py-1.5 rounded-full text-sm border ${
-              activeTab === type
-                ? "bg-blue-600 text-white border-blue-600"
-                : "bg-white text-gray-600 border-gray-300 hover:bg-gray-50"
-            }`}
-          >
-            {type === "all" ? "All" : type.charAt(0).toUpperCase() + type.slice(1)}
-          </button>
-        ))}
-      </div>
+    {ACCOUNT_TYPES.map((type) => (
+      <button
+        key={type}
+        onClick={() => setActiveTab(type)}
+        className={`px-3 sm:px-4 py-1 sm:py-1.5 rounded-full text-xs sm:text-sm border flex-grow sm:flex-grow-0 ${
+          activeTab === type
+            ? "bg-blue-600 text-white border-blue-600"
+            : "bg-white text-gray-600 border-gray-300 hover:bg-gray-50"
+        }`}
+      >
+        {type === "all" ? "All" : type.charAt(0).toUpperCase() + type.slice(1)}
+      </button>
+    ))}
+  </div>
 
       {/* Accounts Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
