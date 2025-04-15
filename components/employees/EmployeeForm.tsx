@@ -78,7 +78,8 @@ export default function EmployeeForm() {
   return (
     <form
       onSubmit={handleSubmit}
-      className="max-w-2xl mx-auto bg-white dark:bg-gray-800 p-6 rounded-lg shadow space-y-5"
+      // className="max-w-2xl mx-auto bg-white dark:bg-gray-800 p-6 rounded-lg shadow space-y-5"
+      className="max-w-2xl mx-auto bg-white  p-4 rounded-lg shadow space-y-5"
     >
       <h2 className="text-xl font-semibold text-gray-800 dark:text-white mb-2">
         {id ? "Edit Employee" : "Add New Employee"}
@@ -136,7 +137,7 @@ export default function EmployeeForm() {
 
       <button
         type="submit"
-        className="bg-green-700 text-white px-4 py-2 rounded hover:bg-green-800"
+        className="bg-blue-700 text-white px-4 py-2 rounded hover:bg-green-800"
       >
         {id ? "Update Employee" : "Save Employee"}
       </button>

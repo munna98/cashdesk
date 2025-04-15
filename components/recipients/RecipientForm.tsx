@@ -80,9 +80,11 @@ export default function RecipientForm() {
   return (
     <form
       onSubmit={handleSubmit}
-      className="max-w-2xl mx-auto bg-white dark:bg-gray-800 p-6 rounded-lg shadow space-y-5"
+      // className="max-w-2xl mx-auto bg-white dark:bg-gray-800 p-6 rounded-lg shadow space-y-5"
+      className="max-w-2xl mx-auto bg-white  p-4 rounded-lg shadow space-y-5"
     >
-      <h2 className="text-xl font-semibold text-gray-800 dark:text-white mb-2">
+      {/* <h2 className="text-xl font-semibold text-gray-800 dark:text-white mb-2"> */}
+      <h2 className="text-xl font-semibold text-gray-800 ">
         {id ? "Edit Recipient" : "Add New Recipient"}
       </h2>
 
