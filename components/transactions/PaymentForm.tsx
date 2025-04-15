@@ -12,7 +12,7 @@ import {
 interface Account {
   _id: string;
   name: string;
-  type: string;  // type of account, could be cash, bank, etc.
+  type: string; // type of account, could be cash, bank, etc.
   linkedEntityId: string; // optional: link back to the entity (agent, recipient, etc.)
 }
 
@@ -32,7 +32,9 @@ export default function PaymentForm({ onPaymentSaved }: PaymentFormProps) {
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
   const [note, setNote] = useState("");
   const [type, setType] = useState("payment");
-  const [savedPayment, setSavedPayment] = useState<SavedPaymentInfo | null>(null);
+  const [savedPayment, setSavedPayment] = useState<SavedPaymentInfo | null>(
+    null
+  );
 
   // Load all accounts (not just recipients)
   useEffect(() => {
@@ -83,7 +85,8 @@ export default function PaymentForm({ onPaymentSaved }: PaymentFormProps) {
         <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg text-green-800">
           <p className="font-medium">Payment saved successfully!</p>
           <p className="text-sm">
-            Transaction #{savedPayment.transactionNumber} for ₹{savedPayment.amount.toFixed(2)} has been recorded.
+            Transaction #{savedPayment.transactionNumber} for ₹
+            {savedPayment.amount.toFixed(2)} has been recorded.
           </p>
         </div>
       )}
@@ -92,12 +95,14 @@ export default function PaymentForm({ onPaymentSaved }: PaymentFormProps) {
         onSubmit={handleSubmit}
         className="bg-white p-6 rounded-lg shadow space-y-6 border border-gray-200"
       >
-                <h2 className="text-base md:text-lg font-semibold mb-3 md:mb-4">
-          Enter New Receipt
+        <h2 className="text-base md:text-lg font-semibold mb-3 md:mb-4">
+          Enter New Payment
         </h2>
         {/* Account Select */}
         <div className="space-y-1">
-          <label className="block text-sm font-medium text-gray-700">Account</label>
+          <label className="block text-sm font-medium text-gray-700">
+            Account
+          </label>
           <div className="relative">
             <UserCircleIcon className="h-5 w-5 absolute top-2.5 left-3 text-gray-400" />
             <select
@@ -118,7 +123,9 @@ export default function PaymentForm({ onPaymentSaved }: PaymentFormProps) {
 
         {/* Amount */}
         <div className="space-y-1">
-          <label className="block text-sm font-medium text-gray-700">Amount Paid</label>
+          <label className="block text-sm font-medium text-gray-700">
+            Amount Paid
+          </label>
           <div className="relative">
             <BanknotesIcon className="h-5 w-5 absolute top-2.5 left-3 text-gray-400" />
             <input
@@ -134,7 +141,9 @@ export default function PaymentForm({ onPaymentSaved }: PaymentFormProps) {
 
         {/* Date */}
         <div className="space-y-1">
-          <label className="block text-sm font-medium text-gray-700">Date</label>
+          <label className="block text-sm font-medium text-gray-700">
+            Date
+          </label>
           <div className="relative">
             <CalendarIcon className="h-5 w-5 absolute top-2.5 left-3 text-gray-400" />
             <input
@@ -148,7 +157,9 @@ export default function PaymentForm({ onPaymentSaved }: PaymentFormProps) {
 
         {/* Note */}
         <div className="space-y-1">
-          <label className="block text-sm font-medium text-gray-700">Note</label>
+          <label className="block text-sm font-medium text-gray-700">
+            Note
+          </label>
           <div className="relative">
             <PencilSquareIcon className="h-5 w-5 absolute top-2.5 left-3 text-gray-400" />
             <input
