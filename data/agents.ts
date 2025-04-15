@@ -1,7 +1,7 @@
 export const agents = [
     { 
       id: "a1", 
-      name: "Rahul Kumar", 
+      name: "Neymar Jr", 
       openingBalance: 5000,
       address: "42 Green Park Road, Mumbai, Maharashtra",
       mobile: "+91 98765 43210",
@@ -11,7 +11,7 @@ export const agents = [
     },
     { 
       id: "a2", 
-      name: "Anjali Sharma", 
+      name: "Xavi", 
       openingBalance: 3000,
       address: "23 Jubilee Hills, Hyderabad, Telangana",
       mobile: "+91 87654 32109",
@@ -21,7 +21,7 @@ export const agents = [
     },
     { 
       id: "a3", 
-      name: "Shanu Singh", 
+      name: "Lionel Messi", 
       openingBalance: 4000,
       address: "15 Model Town, New Delhi",
       mobile: "+91 76543 21098",
@@ -31,7 +31,7 @@ export const agents = [
     },
     { 
       id: "a4", 
-      name: "Priya Patel", 
+      name: "Lamin Yamal", 
       openingBalance: 6000,
       address: "78 Koramangala, Bangalore, Karnataka",
       mobile: "+91 65432 10987",
@@ -41,7 +41,7 @@ export const agents = [
     },
     { 
       id: "a5", 
-      name: "Vikram Malhotra", 
+      name: "Ivan Rakitic", 
       openingBalance: 4500,
       address: "56 Salt Lake, Kolkata, West Bengal",
       mobile: "+91 54321 09876",
