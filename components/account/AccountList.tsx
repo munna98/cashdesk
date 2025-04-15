@@ -1,7 +1,10 @@
 import { useEffect, useState, useRef } from "react";
 import axios from "axios";
 import Link from "next/link";
-import { EllipsisVerticalIcon, BanknotesIcon } from "@heroicons/react/24/outline";
+import {
+  EllipsisVerticalIcon,
+  BanknotesIcon,
+} from "@heroicons/react/24/outline";
 
 type Account = {
   _id: string;
@@ -41,7 +44,7 @@ export default function AccountList() {
     if (activeTab === "all") {
       setFilteredAccounts(accounts);
     } else {
-      setFilteredAccounts(accounts.filter(acc => acc.type === activeTab));
+      setFilteredAccounts(accounts.filter((acc) => acc.type === activeTab));
     }
   }, [accounts, activeTab]);
 
@@ -69,7 +72,7 @@ export default function AccountList() {
     if (confirm("Are you sure you want to delete this account?")) {
       try {
         await axios.delete(`/api/accounts/${id}`);
-        setAccounts(prev => prev.filter(acc => acc._id !== id));
+        setAccounts((prev) => prev.filter((acc) => acc._id !== id));
       } catch (error) {
         console.error("Failed to delete account:", error);
         alert("Failed to delete account.");
@@ -105,13 +108,13 @@ export default function AccountList() {
 
   return (
     <div>
-      {/* Top Filter Tabs */}
-      <div className="mb-4 flex flex-wrap gap-2">
+  {/* Top Filter Tabs */}
+  <div className="mb-4 flex gap-2 overflow-x-auto">
     {ACCOUNT_TYPES.map((type) => (
       <button
         key={type}
         onClick={() => setActiveTab(type)}
-        className={`px-3 sm:px-4 py-1 sm:py-1.5 rounded-full text-xs sm:text-sm border flex-grow sm:flex-grow-0 ${
+        className={`px-3 sm:px-4 py-1 sm:py-1.5 rounded-full text-xs sm:text-sm border flex-shrink-0 ${
           activeTab === type
             ? "bg-blue-600 text-white border-blue-600"
             : "bg-white text-gray-600 border-gray-300 hover:bg-gray-50"
@@ -131,7 +134,9 @@ export default function AccountList() {
           >
             {/* Card Header */}
             <div className="px-4 py-3 bg-gray-50 flex justify-between items-center border-b border-gray-200">
-              <h3 className="font-medium text-gray-900 truncate">{account.name}</h3>
+              <h3 className="font-medium text-gray-900 truncate">
+                {account.name}
+              </h3>
               <div className="relative" ref={menuRef}>
                 <button
                   onClick={() => toggleMenu(account._id)}
