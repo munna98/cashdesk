@@ -1,6 +1,8 @@
 import { useEffect, useState, useRef } from "react";
 import axios from "axios";
 import Link from "next/link";
+import { useRouter } from "next/router";
+
 import {
   EllipsisVerticalIcon,
   BanknotesIcon,
@@ -16,6 +18,7 @@ type Account = {
 
 const ACCOUNT_TYPES = ["all", "cash", "bank", "income", "expense"];
 
+
 export default function AccountList() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [filteredAccounts, setFilteredAccounts] = useState<Account[]>([]);
@@ -24,7 +27,7 @@ export default function AccountList() {
   const [activeTab, setActiveTab] = useState<string>("all");
 
   const menuRef = useRef<HTMLDivElement>(null);
-
+  const router = useRouter();
   useEffect(() => {
     const fetchAccounts = async () => {
       try {
@@ -81,8 +84,7 @@ export default function AccountList() {
   };
 
   const handleShowLedger = (accountId: string) => {
-    // TODO: Navigate or open a modal to show ledger for the account
-    console.log("Show ledger for:", accountId);
+    router.push(`/ledger/${accountId}`);
   };
 
   const getTypeLabelStyle = (type: string) => {
