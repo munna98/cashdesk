@@ -20,28 +20,36 @@ export default function EditReceiptPage() {
   const { id } = router.query;
 
   const [agentAccounts, setAgentAccounts] = useState<AgentAccount[]>([]);
-  const [accountId, setAccountId] = useState("");
+  const [fromAccount, setFromAccount] = useState("");
   const [amount, setAmount] = useState("");
   const [date, setDate] = useState("");
   const [note, setNote] = useState("");
   const [loading, setLoading] = useState(true);
+  const [cashAccountId, setCashAccountId] = useState(""); // Needed for update
 
   useEffect(() => {
     if (!id) return;
 
     const fetchData = async () => {
       try {
-        const [txnRes, accountsRes] = await Promise.all([
+        const [txnRes, agentAccountsRes, cashAccountsRes] = await Promise.all([
           axios.get(`/api/transactions/${id}`),
           axios.get("/api/accounts?type=agent"),
+          axios.get("/api/accounts?type=cash"),
         ]);
 
         const txn = txnRes.data;
-        setAccountId(txn.accountId._id);
+        setFromAccount(txn.fromAccount._id);
         setAmount(txn.amount.toString());
         setDate(txn.date.split("T")[0]);
         setNote(txn.note || "");
-        setAgentAccounts(accountsRes.data);
+        setAgentAccounts(agentAccountsRes.data);
+
+        if (cashAccountsRes.data.length > 0) {
+          setCashAccountId(cashAccountsRes.data[0]._id);
+        } else {
+          alert("No cash account found.");
+        }
       } catch (error) {
         console.error("Error loading data:", error);
         alert("Failed to load receipt");
@@ -55,12 +63,15 @@ export default function EditReceiptPage() {
 
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
+
     try {
       await axios.put(`/api/transactions/${id}`, {
-        accountId,
+        fromAccount,
+        toAccount: cashAccountId,
         amount: Number(amount),
         date,
         note,
+        type: "receipt",
       });
       router.push("/transactions/receipts/all");
     } catch (err) {
@@ -87,8 +98,8 @@ export default function EditReceiptPage() {
               <div className="relative">
                 <UserCircleIcon className="h-5 w-5 absolute top-2.5 left-3 text-gray-400" />
                 <select
-                  value={accountId}
-                  onChange={(e) => setAccountId(e.target.value)}
+                  value={fromAccount}
+                  onChange={(e) => setFromAccount(e.target.value)}
                   required
                   className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
                 >

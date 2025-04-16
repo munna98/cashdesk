@@ -11,7 +11,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const payments = await Transaction.find({ type: "payment" })
       .sort({ createdAt: -1 })
       .limit(5)
-      .populate("accountId", "name");
+      .populate("fromAccount", "name")
+      .populate("toAccount", "name");
 
     const formatted = payments.map((t) => ({
       _id: t._id,
@@ -20,7 +21,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       amount: t.amount,
       date: t.date,
       account: {
-        name: t.accountId?.name || "Unknown",
+        name: t.toAccount?.name || "Unknown",
       },
     }));
 

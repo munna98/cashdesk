@@ -27,6 +27,7 @@ interface PaymentFormProps {
 
 export default function PaymentForm({ onPaymentSaved }: PaymentFormProps) {
   const [accounts, setAccounts] = useState<Account[]>([]);
+  const [cashAccountId, setCashAccountId] = useState("");
   const [accountId, setAccountId] = useState("");
   const [amount, setAmount] = useState("");
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
@@ -38,17 +39,36 @@ export default function PaymentForm({ onPaymentSaved }: PaymentFormProps) {
 
   // Load all accounts (not just recipients)
   useEffect(() => {
+    let fetchedCashAccountId = "";
+  
+    // Fetch cash account first
     axios
-      .get("/api/accounts")
-      .then((res) => setAccounts(res.data))
+      .get("/api/accounts?type=cash")
+      .then((res) => {
+        if (res.data && res.data.length > 0) {
+          fetchedCashAccountId = res.data[0]._id;
+          setCashAccountId(fetchedCashAccountId);
+        }
+  
+        // Now fetch all accounts and filter out the cash account
+        return axios.get("/api/accounts");
+      })
+      .then((res) => {
+        const filteredAccounts = res.data.filter(
+          (acc: Account) => acc._id !== fetchedCashAccountId
+        );
+        setAccounts(filteredAccounts);
+      })
       .catch((err) => console.error("Failed to load accounts", err));
   }, []);
+  
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     const payment = {
-      accountId,
+      fromAccount: cashAccountId, 
+      toAccount: accountId,
       amount: Number(amount),
       date,
       note,

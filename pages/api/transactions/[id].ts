@@ -1,14 +1,9 @@
- // /api/transactions/[id].ts
-
+// /api/transactions/[id].ts
 import { NextApiRequest, NextApiResponse } from "next";
 import dbConnect from "@/lib/mongodb";
 import Transaction from "@/models/Transaction";
-import { ITransaction } from "@/types/transaction";
 
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse
-) {
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   await dbConnect();
 
   const {
@@ -17,7 +12,9 @@ export default async function handler(
   } = req;
 
   try {
-    const transaction = await Transaction.findById(id).populate("accountId", "name");
+    const transaction = await Transaction.findById(id)
+      .populate("fromAccount", "name")
+      .populate("toAccount", "name");
 
     if (!transaction) {
       return res.status(404).json({ message: "Transaction not found" });
@@ -28,18 +25,14 @@ export default async function handler(
         return res.status(200).json(transaction);
 
       case "PUT": {
-        const { accountId, amount, date, note, type } = req.body;
+        const { fromAccount, toAccount, amount, date, note } = req.body;
 
         if (!["receipt", "payment"].includes(transaction.type)) {
           return res.status(400).json({ message: "Invalid transaction type" });
         }
 
-        // Optionally validate `type` in request body if you want to enforce it
-        // if (type && type !== transaction.type) {
-        //   return res.status(400).json({ message: "Cannot change transaction type" });
-        // }
-
-        transaction.accountId = accountId;
+        transaction.fromAccount = fromAccount;
+        transaction.toAccount = toAccount;
         transaction.amount = amount;
         transaction.date = date;
         transaction.note = note;
@@ -59,6 +52,7 @@ export default async function handler(
         return res.status(405).json({ message: `Method ${method} Not Allowed` });
     }
   } catch (error: any) {
+    console.error("Transaction API error:", error);
     return res.status(500).json({ error: error.message });
   }
 }
