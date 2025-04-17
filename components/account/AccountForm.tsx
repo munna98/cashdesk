@@ -8,7 +8,7 @@ export default function AccountForm() {
 
   const [form, setForm] = useState({
     name: "",
-    type: "other", // Default type
+    type: "",
     balance: "",
   });
 
