@@ -75,6 +75,14 @@ export default function RecipientList() {
     );
   }
 
+  if (recipients.length === 0) {
+    return (
+      <div className="text-center py-8 text-gray-600">
+        No recipients found. <Link href="/recipients/form" className="text-blue-500 hover:underline">Please add a recipient first</Link>.
+      </div>
+    );
+  }
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
       {recipients.map((recipient) => (

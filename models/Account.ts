@@ -17,7 +17,7 @@ const AccountSchema = new mongoose.Schema({
     default: null
   },
   balance: {
-    type: Number,
+    type: Number, 
     default: 0
   }
 }, { timestamps: true });

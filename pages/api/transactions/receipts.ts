@@ -13,16 +13,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .populate("fromAccount", "name")
       .populate("toAccount", "name");
 
-      const formatted = receipts.map((t) => ({
-        _id: t._id,
-        transactionNumber: t.transactionNumber,
-        note: t.note,
-        amount: t.amount,
-        date: t.date,
-        account: {
-          name: t.fromAccount?.name || "Unknown",
-        },
-      }));
+    const formatted = receipts.map((t) => ({
+      _id: t._id,
+      transactionNumber: t.transactionNumber,
+      note: t.note,
+      amount: t.amount,
+      commission: t.commission, 
+      date: t.date,
+      account: {
+        name: t.fromAccount?.name || "Unknown",
+      },
+    }));
 
     res.status(200).json(formatted);
   } catch (err: any) {

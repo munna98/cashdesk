@@ -33,7 +33,7 @@ export default async function handler(
         return res.status(400).json({ error: error.message });
       }
 
-    case "DELETE":
+    case "DELETE": 
       try {
         const deleted = await Account.findByIdAndDelete(id);
         if (!deleted) return res.status(404).json({ message: "Account not found" });

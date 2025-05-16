@@ -47,12 +47,12 @@ export default function AgentList() {
         setActiveMenu(null);
       }
     }
-    
+
     // Add event listener when dropdown is open
     if (activeMenu) {
       document.addEventListener("mousedown", handleClickOutside);
     }
-    
+
     // Cleanup event listener
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
@@ -87,11 +87,19 @@ export default function AgentList() {
     );
   }
 
+  if (agents.length === 0) {
+    return (
+      <div className="text-center py-8 text-gray-600">
+        No agents found. <Link href="/agents/form" className="text-blue-500 hover:underline">Please add an agent first</Link>.
+      </div>
+    );
+  }
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
       {agents.map((agent) => (
-        <div 
-          key={agent._id} 
+        <div
+          key={agent._id}
           className="bg-white rounded-lg shadow border border-gray-200 overflow-hidden hover:shadow-md transition-shadow"
         >
           {/* Card Header */}
@@ -105,7 +113,7 @@ export default function AgentList() {
               >
                 <EllipsisVerticalIcon className="h-5 w-5" />
               </button>
-              
+
               {activeMenu === agent._id && (
                 <div className="absolute right-0 top-full mt-1 w-36 bg-white rounded-md shadow-lg z-10 border border-gray-200">
                   <div className="py-1">
@@ -126,7 +134,7 @@ export default function AgentList() {
               )}
             </div>
           </div>
-          
+
           {/* Card Body */}
           <div className="p-4">
             {/* Address */}
@@ -136,18 +144,18 @@ export default function AgentList() {
                 {agent.address}
               </span>
             </div>
-            
+
             {/* Contact Info */}
             <div className="flex items-center space-x-2 text-sm text-gray-500 mb-2">
               <PhoneIcon className="h-4 w-4 flex-shrink-0" />
               <span>{agent.mobile}</span>
             </div>
-            
+
             <div className="flex items-center space-x-2 text-sm text-gray-500 mb-4">
               <EnvelopeIcon className="h-4 w-4 flex-shrink-0" />
               <span className="truncate" title={agent.email}>{agent.email}</span>
             </div>
-            
+
             {/* Commission and Balance */}
             <div className="flex justify-between items-center pt-3 border-t border-gray-100">
               <div>
@@ -160,7 +168,7 @@ export default function AgentList() {
                   {agent.commPercent}%
                 </div>
               </div>
-              
+
               <div className="text-right">
                 <span className="text-xs text-gray-500">Balance</span>
                 <div
@@ -180,4 +188,4 @@ export default function AgentList() {
       ))}
     </div>
   );
-}
+} 

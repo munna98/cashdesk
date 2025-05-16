@@ -13,11 +13,10 @@ type Account = {
   name: string;
   type: string;
   balance: number;
-  linkedEntityType?: string;
+  linkedEntityId?: string | null; // Ensure linkedEntityId can be null
 };
 
 const ACCOUNT_TYPES = ["all", "cash", "bank", "income", "expense"];
-
 
 export default function AccountList() {
   const [accounts, setAccounts] = useState<Account[]>([]);
@@ -28,6 +27,7 @@ export default function AccountList() {
 
   const menuRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
+
   useEffect(() => {
     const fetchAccounts = async () => {
       try {
@@ -103,9 +103,7 @@ export default function AccountList() {
   };
 
   if (loading) {
-    return (
-      <div className="text-center py-8 text-gray-600">Loading accounts...</div>
-    );
+    return <div className="text-center py-8 text-gray-600">Loading accounts...</div>;
   }
 
   return (
@@ -122,9 +120,7 @@ export default function AccountList() {
                 : "bg-white text-gray-600 border-gray-300 hover:bg-gray-50"
             }`}
           >
-            {type === "all"
-              ? "All"
-              : type.charAt(0).toUpperCase() + type.slice(1)}
+            {type === "all" ? "All" : type.charAt(0).toUpperCase() + type.slice(1)}
           </button>
         ))}
       </div>
@@ -138,9 +134,7 @@ export default function AccountList() {
           >
             {/* Card Header */}
             <div className="px-4 py-3 bg-gray-50 flex justify-between items-center border-b border-gray-200">
-              <h3 className="font-medium text-gray-900 truncate">
-                {account.name}
-              </h3>
+              <h3 className="font-medium text-gray-900 truncate">{account.name}</h3>
               <div className="relative" ref={menuRef}>
                 <button
                   onClick={() => toggleMenu(account._id)}
@@ -159,12 +153,15 @@ export default function AccountList() {
                       >
                         Edit
                       </Link>
-                      <button
-                        onClick={() => handleDelete(account._id)}
-                        className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100"
-                      >
-                        Delete
-                      </button>
+                      {/* Conditionally render the delete button */}
+                      {account.linkedEntityId === null && (
+                        <button
+                          onClick={() => handleDelete(account._id)}
+                          className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100"
+                        >
+                          Delete
+                        </button>
+                      )}
                     </div>
                   </div>
                 )}
