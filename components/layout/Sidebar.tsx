@@ -24,8 +24,8 @@ const navItems = [
   { label: "Recipients", href: "/recipients", icon: UserIcon },
   { label: "Employees", href: "/employees", icon: UserCircleIcon },
   { label: "Accounts", href: "/accounts", icon: BanknotesIcon },
-  { label: "Reports", href: "/reports/report", icon: ChartBarIcon },
-  // { label: "Reports", href: "/under-construction", icon: ChartBarIcon },
+  // { label: "Reports", href: "/reports/report", icon: ChartBarIcon },
+  { label: "Reports", href: "/under-construction", icon: ChartBarIcon },
   { label: "Settings", href: "/under-construction", icon: Cog6ToothIcon },
   { label: "Help", href: "/help", icon: QuestionMarkCircleIcon },
 ]
