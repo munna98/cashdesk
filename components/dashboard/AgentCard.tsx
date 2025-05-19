@@ -31,7 +31,8 @@ export default function AgentCard({
   const closing = opening + received - paid - commission
   
   const handleReceivePayment = () => {
-    router.push(`/receipts/new?agentId=${id}&agentName=${encodeURIComponent(name)}${commPercent ? `&commPercent=${commPercent}` : ''}`)
+    // router.push(`/receipts/new?agentId=${id}&agentName=${encodeURIComponent(name)}${commPercent ? `&commPercent=${commPercent}` : ''}`)
+    router.push(`/receipts/new?agentId=${id}${commPercent ? `&commPercent=${commPercent}` : ''}`)
   }
   
   return (

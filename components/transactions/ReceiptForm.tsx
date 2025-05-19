@@ -16,6 +16,7 @@ interface AgentAccount {
   linkedEntityType: string;
   linkedEntityId: string;
   balance: number;
+  commPercent?: number; // <-- Add commission percent
 }
 
 interface SavedReceiptInfo {
@@ -29,13 +30,14 @@ interface ReceiptFormProps {
 
 export default function ReceiptForm({ onReceiptSaved }: ReceiptFormProps) {
   const router = useRouter();
-  const { agentId, agentName, commPercent } = router.query;
+  const { agentId } = router.query;
 
   const [agentAccounts, setAgentAccounts] = useState<AgentAccount[]>([]);
   const [cashAccountId, setCashAccountId] = useState("");
   const [accountId, setAccountId] = useState("");
   const [amount, setAmount] = useState("");
   const [commission, setCommission] = useState("0");
+  const [selectedAgentCommission, setSelectedAgentCommission] = useState<number | null>(null);
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
   const [note, setNote] = useState("");
   const [type, setType] = useState("receipt");
@@ -45,7 +47,7 @@ export default function ReceiptForm({ onReceiptSaved }: ReceiptFormProps) {
   // Load agent and cash accounts
   useEffect(() => {
     setLoading(true);
-    // Fetch agent accounts
+
     axios
       .get("/api/accounts?type=agent")
       .then((res) => {
@@ -57,7 +59,6 @@ export default function ReceiptForm({ onReceiptSaved }: ReceiptFormProps) {
         setLoading(false);
       });
 
-    // Fetch cash account
     axios
       .get("/api/accounts?type=cash")
       .then((res) => {
@@ -68,57 +69,43 @@ export default function ReceiptForm({ onReceiptSaved }: ReceiptFormProps) {
       .catch((err) => console.error("Failed to load cash account", err));
   }, []);
 
-  // Load agent and cash accounts
-  useEffect(() => {
-    // Fetch agent accounts
-    axios
-      .get("/api/accounts?type=agent")
-      .then((res) => setAgentAccounts(res.data))
-      .catch((err) => console.error("Failed to load agent accounts", err));
-
-    // Fetch cash account
-    axios
-      .get("/api/accounts?type=cash")
-      .then((res) => {
-        if (res.data && res.data.length > 0) {
-          setCashAccountId(res.data[0]._id);
-        }
-      })
-      .catch((err) => console.error("Failed to load cash account", err));
-  }, []);
-
-  // Set pre-selected agent when accounts are loaded and agentId is provided
+  // Set pre-selected agent from query
   useEffect(() => {
     if (agentId && agentAccounts.length > 0 && !loading) {
-      // Find the account that matches the provided agentId
       const matchingAccount = agentAccounts.find(
         (acc) => acc.linkedEntityId === agentId
       );
-      
       if (matchingAccount) {
         setAccountId(matchingAccount._id);
-      }
-      
-      // If the agent name is provided, add it to the note
-      if (agentName && typeof agentName === 'string') {
-        setNote(`Receipt from ${agentName}`);
+        setSelectedAgentCommission(matchingAccount.commPercent || 0);
       }
     }
-  }, [agentId, agentName, agentAccounts, loading]);
+  }, [agentId, agentAccounts, loading]);
 
-  // Calculate commission when amount changes (if commPercent is available)
+  // When agent selection changes
   useEffect(() => {
-    if (commPercent && amount) {
-      const commValue = parseFloat(commPercent as string);
-      if (!isNaN(commValue)) {
-        const amountValue = parseFloat(amount);
-        const calculatedCommission = (amountValue * commValue) / 100;
-        setCommission(calculatedCommission.toFixed(2));
-      }
+    const selected = agentAccounts.find((acc) => acc._id === accountId);
+    if (selected) {
+      setSelectedAgentCommission(selected.commPercent || 0);
+      console.log(selected);
+      console.log(selected._id);
+      console.log(selected.name);
+      console.log(selected.commPercent);
+      
+    } else {
+      setSelectedAgentCommission(null);
     }
-  }, [amount, commPercent]);
+  }, [accountId, agentAccounts]);
 
-  // Submit receipt to backend
+  // Recalculate commission when amount or agent commission percent changes
+  useEffect(() => {
+    const amt = parseFloat(amount);
+    if (!isNaN(amt) && selectedAgentCommission !== null) {
+      const comm = (amt * selectedAgentCommission) / 100;
+      setCommission(comm.toFixed(2));
+    }
+  }, [amount, selectedAgentCommission]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -128,8 +115,8 @@ export default function ReceiptForm({ onReceiptSaved }: ReceiptFormProps) {
     }
 
     const receipt = {
-      fromAccount: accountId, // agent account
-      toAccount: cashAccountId, // default cash account
+      fromAccount: accountId,
+      toAccount: cashAccountId,
       amount: Number(amount),
       commission: Number(commission),
       date,
@@ -146,7 +133,6 @@ export default function ReceiptForm({ onReceiptSaved }: ReceiptFormProps) {
         amount: res.data.amount,
       });
 
-      // Reset form
       setAccountId("");
       setAmount("");
       setCommission("0");
@@ -158,11 +144,6 @@ export default function ReceiptForm({ onReceiptSaved }: ReceiptFormProps) {
       console.error("Error saving receipt:", error);
       alert("Failed to save receipt.");
     }
-  };
-
-  // Go back to dashboard
-  const handleGoBack = () => {
-    router.push("/dashboard");
   };
 
   return (
@@ -189,7 +170,6 @@ export default function ReceiptForm({ onReceiptSaved }: ReceiptFormProps) {
           <div className="text-center py-4">Loading agent accounts...</div>
         ) : (
           <>
-            {/* Agent Select */}
             <div className="space-y-1">
               <label className="block text-sm font-medium text-gray-700">
                 Agent Account
@@ -212,7 +192,6 @@ export default function ReceiptForm({ onReceiptSaved }: ReceiptFormProps) {
               </div>
             </div>
 
-            {/* Amount */}
             <div className="space-y-1">
               <label className="block text-sm font-medium text-gray-700">
                 Amount Received
@@ -230,7 +209,6 @@ export default function ReceiptForm({ onReceiptSaved }: ReceiptFormProps) {
               </div>
             </div>
 
-            {/* Commission */}
             <div className="space-y-1">
               <label className="block text-sm font-medium text-gray-700">
                 Commission Amount
@@ -245,14 +223,13 @@ export default function ReceiptForm({ onReceiptSaved }: ReceiptFormProps) {
                   placeholder="Commission amount"
                 />
               </div>
-              {commPercent && (
+              {selectedAgentCommission !== null && (
                 <p className="text-xs text-gray-500 mt-1">
-                  Auto-calculated at {commPercent}% of amount
+                  Auto-calculated at {selectedAgentCommission}% of amount
                 </p>
               )}
             </div>
 
-            {/* Date */}
             <div className="space-y-1">
               <label className="block text-sm font-medium text-gray-700">
                 Date
@@ -268,7 +245,6 @@ export default function ReceiptForm({ onReceiptSaved }: ReceiptFormProps) {
               </div>
             </div>
 
-            {/* Note */}
             <div className="space-y-1">
               <label className="block text-sm font-medium text-gray-700">
                 Note
@@ -285,7 +261,6 @@ export default function ReceiptForm({ onReceiptSaved }: ReceiptFormProps) {
               </div>
             </div>
 
-            {/* Action Buttons */}
             <div className="pt-4 grid grid-cols-2 gap-3">
               <button
                 type="button"
