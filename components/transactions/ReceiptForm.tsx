@@ -1,111 +1,122 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import axios from "axios";
-import { useRouter } from "next/router";
 import {
   BanknotesIcon,
   CalendarIcon,
   UserCircleIcon,
   PencilSquareIcon,
-  CalculatorIcon,
 } from "@heroicons/react/24/outline";
 
-interface AgentAccount {
+interface Agent {
   _id: string;
   name: string;
-  type: string;
-  linkedEntityType: string;
+  commPercent?: number;
+}
+
+interface Account {
+  _id: string;
+  name: string;
   linkedEntityId: string;
-  balance: number;
-  commPercent?: number; // <-- Add commission percent
+  type: string;
+}
+
+interface AgentWithAccount extends Agent {
+  account?: Account;
 }
 
 interface SavedReceiptInfo {
   transactionNumber: string;
   amount: number;
+  commissionAmount?: number;
 }
 
 interface ReceiptFormProps {
-  onReceiptSaved?: () => void;
+  onReceiptSaved?: (receiptInfo: SavedReceiptInfo) => void;
 }
 
 export default function ReceiptForm({ onReceiptSaved }: ReceiptFormProps) {
-  const router = useRouter();
-  const { agentId } = router.query;
-
-  const [agentAccounts, setAgentAccounts] = useState<AgentAccount[]>([]);
+  const [agents, setAgents] = useState<AgentWithAccount[]>([]);
   const [cashAccountId, setCashAccountId] = useState("");
-  const [accountId, setAccountId] = useState("");
+  const [selectedAgentId, setSelectedAgentId] = useState("");
   const [amount, setAmount] = useState("");
-  const [commission, setCommission] = useState("0");
-  const [selectedAgentCommission, setSelectedAgentCommission] = useState<number | null>(null);
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
   const [note, setNote] = useState("");
   const [type, setType] = useState("receipt");
   const [savedReceipt, setSavedReceipt] = useState<SavedReceiptInfo | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [commissionAmount, setCommissionAmount] = useState<number | undefined>(undefined);
 
-  // Load agent and cash accounts
+  // State to track if the commission amount input is currently focused
+  const isCommissionAmountFocused = useRef(false);
+
+  // Load agents, accounts, and link them together
   useEffect(() => {
-    setLoading(true);
-
-    axios
-      .get("/api/accounts?type=agent")
-      .then((res) => {
-        setAgentAccounts(res.data);
-        setLoading(false);
-      })
-      .catch((err) => {
-        console.error("Failed to load agent accounts", err);
-        setLoading(false);
-      });
-
-    axios
-      .get("/api/accounts?type=cash")
-      .then((res) => {
-        if (res.data && res.data.length > 0) {
-          setCashAccountId(res.data[0]._id);
+    // Fetch agents
+    const fetchData = async () => {
+      try {
+        // Get all agents
+        const agentsRes = await axios.get("/api/agents");
+        const agentsData = agentsRes.data;
+        
+        // Get all accounts
+        const accountsRes = await axios.get("/api/accounts");
+        const accountsData = accountsRes.data;
+        
+        // Link agents with their accounts
+        const agentsWithAccounts = agentsData.map((agent: Agent) => {
+          const agentAccount = accountsData.find(
+            (account: Account) => 
+              account.linkedEntityId?.toString() === agent._id?.toString()
+          );
+          
+          return {
+            ...agent,
+            account: agentAccount || null
+          };
+        });
+        
+        setAgents(agentsWithAccounts);
+        
+        // Find cash account
+        const cashAccount = accountsData.find((account: Account) => account.type === 'cash');
+        if (cashAccount) {
+          setCashAccountId(cashAccount._id);
         }
-      })
-      .catch((err) => console.error("Failed to load cash account", err));
+      } catch (err) {
+        console.error("Failed to load data:", err);
+      }
+    };
+    
+    fetchData();
   }, []);
 
-  // Set pre-selected agent from query
+  // Update commission amount automatically when agent or amount changes
   useEffect(() => {
-    if (agentId && agentAccounts.length > 0 && !loading) {
-      const matchingAccount = agentAccounts.find(
-        (acc) => acc.linkedEntityId === agentId
-      );
-      if (matchingAccount) {
-        setAccountId(matchingAccount._id);
-        setSelectedAgentCommission(matchingAccount.commPercent || 0);
+    const selectedAgent = agents.find((agent) => agent._id === selectedAgentId);
+    if (selectedAgent && selectedAgent.commPercent && amount) {
+      // Only update if the user hasn't manually changed it
+      if (!isCommissionAmountFocused.current) {
+        setCommissionAmount(Number(amount) * (selectedAgent.commPercent / 100));
+      }
+    } else {
+      if (!isCommissionAmountFocused.current) {
+        setCommissionAmount(undefined);
       }
     }
-  }, [agentId, agentAccounts, loading]);
+  }, [selectedAgentId, amount, agents]);
 
-  // When agent selection changes
-  useEffect(() => {
-    const selected = agentAccounts.find((acc) => acc._id === accountId);
-    if (selected) {
-      setSelectedAgentCommission(selected.commPercent || 0);
-      console.log(selected);
-      console.log(selected._id);
-      console.log(selected.name);
-      console.log(selected.commPercent);
-      
-    } else {
-      setSelectedAgentCommission(null);
-    }
-  }, [accountId, agentAccounts]);
+  const handleCommissionChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setCommissionAmount(Number(e.target.value));
+  };
+  
+  const handleCommissionFocus = () => {
+    isCommissionAmountFocused.current = true;
+  };
+  
+  const handleCommissionBlur = () => {
+    isCommissionAmountFocused.current = false;
+  };
 
-  // Recalculate commission when amount or agent commission percent changes
-  useEffect(() => {
-    const amt = parseFloat(amount);
-    if (!isNaN(amt) && selectedAgentCommission !== null) {
-      const comm = (amt * selectedAgentCommission) / 100;
-      setCommission(comm.toFixed(2));
-    }
-  }, [amount, selectedAgentCommission]);
-
+  // Submit receipt to backend
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -114,32 +125,42 @@ export default function ReceiptForm({ onReceiptSaved }: ReceiptFormProps) {
       return;
     }
 
+    // Find the selected agent and get their account ID
+    const selectedAgent = agents.find(agent => agent._id === selectedAgentId);
+    if (!selectedAgent || !selectedAgent.account) {
+      alert("Agent has no linked account. Please set up the agent account first.");
+      return;
+    }
+
     const receipt = {
-      fromAccount: accountId,
-      toAccount: cashAccountId,
+      fromAccount: selectedAgent.account._id, // Use the agent's account ID instead of agent ID
+      toAccount: cashAccountId, // default cash account
       amount: Number(amount),
-      commission: Number(commission),
       date,
       note,
       type,
+      commission: commissionAmount || 0, // Include commission in the transaction
     };
 
     try {
       const res = await axios.post("/api/transactions", receipt);
       console.log("Receipt saved:", res.data);
 
-      setSavedReceipt({
-        transactionNumber: res.data.transactionNumber || res.data._id,
+      const savedInfo: SavedReceiptInfo = {
+        transactionNumber: res.data.transactionNumber,
         amount: res.data.amount,
-      });
+        commissionAmount: res.data.commission,
+      };
+      setSavedReceipt(savedInfo);
 
-      setAccountId("");
+      // Reset form
+      setSelectedAgentId("");
       setAmount("");
-      setCommission("0");
       setNote("");
       setDate(new Date().toISOString().split("T")[0]);
+      setCommissionAmount(undefined);
 
-      if (onReceiptSaved) onReceiptSaved();
+      if (onReceiptSaved) onReceiptSaved(savedInfo);
     } catch (error) {
       console.error("Error saving receipt:", error);
       alert("Failed to save receipt.");
@@ -153,7 +174,13 @@ export default function ReceiptForm({ onReceiptSaved }: ReceiptFormProps) {
           <p className="font-medium">Receipt saved successfully!</p>
           <p className="text-sm">
             Transaction #{savedReceipt.transactionNumber} for ₹
-            {savedReceipt.amount.toFixed(2)} has been recorded.
+            {savedReceipt.amount.toFixed(2)} has been recorded
+            {savedReceipt.commissionAmount !== undefined && (
+              <>
+                {" "}(Commission: ₹{savedReceipt.commissionAmount.toFixed(2)})
+              </>
+            )}
+            .
           </p>
         </div>
       )}
@@ -166,118 +193,108 @@ export default function ReceiptForm({ onReceiptSaved }: ReceiptFormProps) {
           Enter New Receipt
         </h2>
 
-        {loading ? (
-          <div className="text-center py-4">Loading agent accounts...</div>
-        ) : (
-          <>
-            <div className="space-y-1">
-              <label className="block text-sm font-medium text-gray-700">
-                Agent Account
-              </label>
-              <div className="relative">
-                <UserCircleIcon className="h-5 w-5 absolute top-2.5 left-3 text-gray-400" />
-                <select
-                  value={accountId}
-                  onChange={(e) => setAccountId(e.target.value)}
-                  required
-                  className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
-                >
-                  <option value="">-- Select Agent Account --</option>
-                  {agentAccounts.map((acc) => (
-                    <option key={acc._id} value={acc._id}>
-                      {acc.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
+        {/* Agent Select */}
+        <div className="space-y-1">
+          <label className="block text-sm font-medium text-gray-700">
+            Agent Account
+          </label>
+          <div className="relative">
+            <UserCircleIcon className="h-5 w-5 absolute top-2.5 left-3 text-gray-400" />
+            <select
+              value={selectedAgentId}
+              onChange={(e) => setSelectedAgentId(e.target.value)}
+              required
+              className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+            >
+              <option value="">-- Select Agent Account --</option>
+              {agents.map((agent) => (
+                <option key={agent._id} value={agent._id}>
+                  {agent.name} {!agent.account && "(No account linked)"}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
 
-            <div className="space-y-1">
-              <label className="block text-sm font-medium text-gray-700">
-                Amount Received
-              </label>
-              <div className="relative">
-                <BanknotesIcon className="h-5 w-5 absolute top-2.5 left-3 text-gray-400" />
-                <input
-                  type="number"
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                  required
-                  className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
-                  placeholder="Enter amount"
-                />
-              </div>
-            </div>
+        {/* Amount */}
+        <div className="space-y-1">
+          <label className="block text-sm font-medium text-gray-700">
+            Amount Received
+          </label>
+          <div className="relative">
+            <BanknotesIcon className="h-5 w-5 absolute top-2.5 left-3 text-gray-400" />
+            <input
+              type="number"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              required
+              className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+              placeholder="Enter amount"
+            />
+          </div>
+        </div>
 
-            <div className="space-y-1">
-              <label className="block text-sm font-medium text-gray-700">
-                Commission Amount
-              </label>
-              <div className="relative">
-                <CalculatorIcon className="h-5 w-5 absolute top-2.5 left-3 text-gray-400" />
-                <input
-                  type="number"
-                  value={commission}
-                  onChange={(e) => setCommission(e.target.value)}
-                  className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
-                  placeholder="Commission amount"
-                />
-              </div>
-              {selectedAgentCommission !== null && (
-                <p className="text-xs text-gray-500 mt-1">
-                  Auto-calculated at {selectedAgentCommission}% of amount
-                </p>
-              )}
-            </div>
+        {/* Commission Amount (Editable and Always Visible) */}
+        <div className="space-y-1">
+          <label className="block text-sm font-medium text-gray-700">
+            Commission Amount
+          </label>
+          <div className="relative">
+            <BanknotesIcon className="h-5 w-5 absolute top-2.5 left-3 text-gray-400" />
+            <input
+              type="number"
+              value={commissionAmount !== undefined ? commissionAmount.toFixed(2) : ""}
+              onChange={handleCommissionChange}
+              onFocus={handleCommissionFocus}
+              onBlur={handleCommissionBlur}
+              className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+              placeholder="Enter commission amount"
+            />
+          </div>
+        </div>
 
-            <div className="space-y-1">
-              <label className="block text-sm font-medium text-gray-700">
-                Date
-              </label>
-              <div className="relative">
-                <CalendarIcon className="h-5 w-5 absolute top-2.5 left-3 text-gray-400" />
-                <input
-                  type="date"
-                  value={date}
-                  onChange={(e) => setDate(e.target.value)}
-                  className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
-                />
-              </div>
-            </div>
+        {/* Date */}
+        <div className="space-y-1">
+          <label className="block text-sm font-medium text-gray-700">
+            Date
+          </label>
+          <div className="relative">
+            <CalendarIcon className="h-5 w-5 absolute top-2.5 left-3 text-gray-400" />
+            <input
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+            />
+          </div>
+        </div>
 
-            <div className="space-y-1">
-              <label className="block text-sm font-medium text-gray-700">
-                Note
-              </label>
-              <div className="relative">
-                <PencilSquareIcon className="h-5 w-5 absolute top-2.5 left-3 text-gray-400" />
-                <input
-                  type="text"
-                  value={note}
-                  onChange={(e) => setNote(e.target.value)}
-                  placeholder="Optional note"
-                  className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
-                />
-              </div>
-            </div>
+        {/* Note */}
+        <div className="space-y-1">
+          <label className="block text-sm font-medium text-gray-700">
+            Note
+          </label>
+          <div className="relative">
+            <PencilSquareIcon className="h-5 w-5 absolute top-2.5 left-3 text-gray-400" />
+            <input
+              type="text"
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder="Optional note"
+              className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+            />
+          </div>
+        </div>
 
-            <div className="pt-4 grid grid-cols-2 gap-3">
-              <button
-                type="button"
-                onClick={() => router.push("/dashboard")}
-                className="w-full bg-gray-100 hover:bg-gray-200 text-gray-800 font-medium py-2 px-4 rounded-md transition"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="w-full bg-blue-700 hover:bg-blue-800 text-white font-medium py-2 px-4 rounded-md transition"
-              >
-                Save Receipt
-              </button>
-            </div>
-          </>
-        )}
+        {/* Submit Button */}
+        <div className="pt-4">
+          <button
+            type="submit"
+            className="w-full bg-blue-700 hover:bg-blue-800 text-white font-medium py-2 px-4 rounded-md transition"
+          >
+            Save Receipt
+          </button>
+        </div>
       </form>
     </div>
   );

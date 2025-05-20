@@ -1,9 +1,9 @@
+// api/transactions/index.ts
 import type { NextApiRequest, NextApiResponse } from "next";
 import dbConnect from "@/lib/mongodb";
 import Transaction from "@/models/Transaction";
 import Counter from "@/models/Counter";
-import Account from "@/models/Account"; // import the Account model
-import Agent from "@/models/Agent";   // Import the Agent model
+import Account from "@/models/Account";
 import { ITransaction } from "@/types/transaction";
 
 async function getNextSequence(name: string) {
@@ -24,7 +24,19 @@ export default async function handler(
   switch (req.method) {
     case "GET":
       try {
-        const transactions: ITransaction[] = await Transaction.find()
+        const { type, date } = req.query;
+
+        // Build the query object dynamically
+        const query: any = {};
+        if (type) query.type = type;
+        if (date) {
+          const start = new Date(date as string);
+          const end = new Date(date as string);
+          end.setDate(end.getDate() + 1); // include up to next day, exclusive
+          query.date = { $gte: start, $lt: end };
+        }
+
+        const transactions: ITransaction[] = await Transaction.find(query)
           .populate("fromAccount", "name")
           .populate("toAccount", "name");
 
@@ -35,35 +47,30 @@ export default async function handler(
 
     case "POST":
       try {
-        const { fromAccount, toAccount, amount, date, note, type } = req.body;
+        const { fromAccount, toAccount, amount, date, note, type, commission } =
+          req.body;
 
         if (!fromAccount || !toAccount || !amount || !date || !type) {
           return res.status(400).json({ message: "Missing required fields" });
-        }
-
-        let commissionAmount = 0;
-        if (type === "receipt") {
-          const agentAccount = await Account.findById(fromAccount).populate('linkedEntityId');
-          if (agentAccount && agentAccount.linkedEntityType === 'Agent' && agentAccount.linkedEntityId && (agentAccount.linkedEntityId as any).commPercent) {
-            commissionAmount = (amount * (agentAccount.linkedEntityId as any).commPercent) / 100;
-          }
         }
 
         const counterKey = type === "payment" ? "payment" : "receipt";
         const seq = await getNextSequence(counterKey);
         const year = new Date().getFullYear();
         const prefix = type === "payment" ? "PMT" : "RCT";
-        const transactionNumber = `${prefix}-${year}-${seq.toString().padStart(5, "0")}`;
+        const transactionNumber = `${prefix}-${year}-${seq
+          .toString()
+          .padStart(5, "0")}`;
 
         const transaction = await Transaction.create({
           transactionNumber,
           fromAccount,
           toAccount,
           amount,
-          commission: commissionAmount, 
           date,
           note,
           type,
+          commission: commission || 0, // Include commission in the transaction
         });
 
         return res.status(201).json(transaction);

@@ -11,13 +11,13 @@ export default async function handler(
   switch (req.method) {
     case "GET":
       try {
-        const { type } = req.query;
+        const { type, linkedEntityType, linkedEntityId } = req.query;
         const filter: any = {};
-    
-        if (type) {
-          filter.type = type;
-        }
-    
+
+        if (type) filter.type = type;
+        if (linkedEntityType) filter.linkedEntityType = linkedEntityType;
+        if (linkedEntityId) filter.linkedEntityId = linkedEntityId;
+
         const accounts = await Account.find(filter);
         return res.status(200).json(accounts);
       } catch (err: any) {
@@ -28,16 +28,25 @@ export default async function handler(
       try {
         // Validate required fields
         if (!req.body.name || !req.body.type) {
-          return res.status(400).json({ 
-            error: "Missing required fields: name and type are required" 
+          return res.status(400).json({
+            error: "Missing required fields: name and type are required",
           });
         }
 
         // Validate type is one of the allowed values
-        const allowedTypes = ['agent', 'recipient', 'cash', 'commission', 'employee', 'expense'];
+        const allowedTypes = [
+          "agent",
+          "recipient",
+          "cash",
+          "commission",
+          "employee",
+          "expense",
+        ];
         if (!allowedTypes.includes(req.body.type)) {
-          return res.status(400).json({ 
-            error: `Invalid account type. Must be one of: ${allowedTypes.join(', ')}` 
+          return res.status(400).json({
+            error: `Invalid account type. Must be one of: ${allowedTypes.join(
+              ", "
+            )}`,
           });
         }
 
