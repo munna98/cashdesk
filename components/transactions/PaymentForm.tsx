@@ -1,5 +1,3 @@
-// components/transactions/PaymentForm.tsx
-
 import { useState, useEffect } from "react";
 import axios from "axios";
 import {
@@ -12,8 +10,8 @@ import {
 interface Account {
   _id: string;
   name: string;
-  type: string; // type of account, could be cash, bank, etc.
-  linkedEntityId: string; // optional: link back to the entity (agent, recipient, etc.)
+  type: string;
+  linkedEntityId: string;
 }
 
 interface SavedPaymentInfo {
@@ -29,19 +27,19 @@ export default function PaymentForm({ onPaymentSaved }: PaymentFormProps) {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [cashAccountId, setCashAccountId] = useState("");
   const [accountId, setAccountId] = useState("");
+  const [effectedAccountId, setEffectedAccountId] = useState("");
   const [amount, setAmount] = useState("");
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
   const [note, setNote] = useState("");
   const [type, setType] = useState("payment");
-  const [savedPayment, setSavedPayment] = useState<SavedPaymentInfo | null>(
-    null
-  );
+  const [savedPayment, setSavedPayment] = useState<SavedPaymentInfo | null>(null);
+  const [agents, setAgents] = useState<Account[]>([]);
+  const [selectedToAccountType, setSelectedToAccountType] = useState("");
 
-  // Load all accounts (not just recipients)
+  // Fetch accounts and agents
   useEffect(() => {
     let fetchedCashAccountId = "";
-  
-    // Fetch cash account first
+
     axios
       .get("/api/accounts?type=cash")
       .then((res) => {
@@ -49,26 +47,33 @@ export default function PaymentForm({ onPaymentSaved }: PaymentFormProps) {
           fetchedCashAccountId = res.data[0]._id;
           setCashAccountId(fetchedCashAccountId);
         }
-  
-        // Now fetch all accounts and filter out the cash account
         return axios.get("/api/accounts");
       })
       .then((res) => {
-        const filteredAccounts = res.data.filter(
-          (acc: Account) => acc._id !== fetchedCashAccountId
+        const allAccounts: Account[] = res.data;
+        const filteredAccounts = allAccounts.filter(
+          (acc) => acc._id !== fetchedCashAccountId
         );
         setAccounts(filteredAccounts);
+
+        const agentAccounts = allAccounts.filter((acc) => acc.type === "agent");
+        setAgents(agentAccounts);
       })
       .catch((err) => console.error("Failed to load accounts", err));
   }, []);
-  
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    if (selectedToAccountType === "recipient" && !effectedAccountId) {
+      alert("Please select a From Agent.");
+      return;
+    }
+
     const payment = {
-      fromAccount: cashAccountId, 
+      fromAccount: cashAccountId,
       toAccount: accountId,
+      effectedAccount: selectedToAccountType === "recipient" ? effectedAccountId : "",
       amount: Number(amount),
       date,
       note,
@@ -86,11 +91,12 @@ export default function PaymentForm({ onPaymentSaved }: PaymentFormProps) {
 
       // Reset form
       setAccountId("");
+      setEffectedAccountId("");
       setAmount("");
       setNote("");
       setDate(new Date().toISOString().split("T")[0]);
+      setSelectedToAccountType("");
 
-      // Trigger refresh
       if (onPaymentSaved) onPaymentSaved();
     } catch (error) {
       console.error("Error saving payment:", error);
@@ -98,9 +104,17 @@ export default function PaymentForm({ onPaymentSaved }: PaymentFormProps) {
     }
   };
 
+  // Update selected account type when accountId changes
+  useEffect(() => {
+    const selected = accounts.find((acc) => acc._id === accountId);
+    setSelectedToAccountType(selected?.type || "");
+  }, [accountId, accounts]);
+
+  console.log(effectedAccountId,"effectedAccountId");
+  
+
   return (
     <div className="max-w-xl mx-auto">
-      {/* Success message */}
       {savedPayment && (
         <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg text-green-800">
           <p className="font-medium">Payment saved successfully!</p>
@@ -118,10 +132,11 @@ export default function PaymentForm({ onPaymentSaved }: PaymentFormProps) {
         <h2 className="text-base md:text-lg font-semibold mb-3 md:mb-4">
           Enter New Payment
         </h2>
-        {/* Account Select */}
+
+        {/* To Account */}
         <div className="space-y-1">
           <label className="block text-sm font-medium text-gray-700">
-            Account
+            To Account
           </label>
           <div className="relative">
             <UserCircleIcon className="h-5 w-5 absolute top-2.5 left-3 text-gray-400" />
@@ -140,6 +155,31 @@ export default function PaymentForm({ onPaymentSaved }: PaymentFormProps) {
             </select>
           </div>
         </div>
+
+        {/* From Agent (only if To Account is a recipient) */}
+        {selectedToAccountType === "recipient" && (
+          <div className="space-y-1">
+            <label className="block text-sm font-medium text-gray-700">
+              From Agent <span className="text-red-500">*</span>
+            </label>
+            <div className="relative">
+              <UserCircleIcon className="h-5 w-5 absolute top-2.5 left-3 text-gray-400" />
+              <select
+                value={effectedAccountId}
+                onChange={(e) => setEffectedAccountId(e.target.value)}
+                required
+                className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+              >
+                <option value="">-- Select Agent --</option>
+                {agents.map((agent) => (
+                  <option key={agent._id} value={agent._id}>
+                    {agent.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        )}
 
         {/* Amount */}
         <div className="space-y-1">
@@ -192,7 +232,7 @@ export default function PaymentForm({ onPaymentSaved }: PaymentFormProps) {
           </div>
         </div>
 
-        {/* Submit Button */}
+        {/* Submit */}
         <div className="pt-4">
           <button
             type="submit"

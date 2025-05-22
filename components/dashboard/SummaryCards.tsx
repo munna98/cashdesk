@@ -12,7 +12,7 @@ import {
   }
   
   export default function SummaryCards({ totalReceived, totalCommission, totalPaid }: Props) {
-    const balance = totalReceived - totalPaid - totalCommission
+    const balance = totalReceived - totalPaid
   
     const cards = [
       {

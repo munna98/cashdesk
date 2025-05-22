@@ -139,7 +139,7 @@ export default function ReceiptForm({ onReceiptSaved }: ReceiptFormProps) {
       date,
       note,
       type,
-      commission: commissionAmount || 0, // Include commission in the transaction
+      commissionAmount: commissionAmount || 0, // Include commission in the transaction
     };
 
     try {
@@ -149,7 +149,7 @@ export default function ReceiptForm({ onReceiptSaved }: ReceiptFormProps) {
       const savedInfo: SavedReceiptInfo = {
         transactionNumber: res.data.transactionNumber,
         amount: res.data.amount,
-        commissionAmount: res.data.commission,
+        commissionAmount: res.data.commissionAmount,
       };
       setSavedReceipt(savedInfo);
 

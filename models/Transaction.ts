@@ -17,11 +17,15 @@ const transactionSchema = new Schema(
       ref: "Account",
       required: true,
     },
+    effectedAccount: {
+      type: Schema.Types.ObjectId,
+      ref: "Account",
+    },
     amount: {
       type: Number,
       required: true,
     },
-    commission: { 
+    commissionAmount: { 
       type: Number,
       default: 0,
     },

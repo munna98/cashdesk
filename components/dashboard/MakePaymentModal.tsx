@@ -1,5 +1,5 @@
-// components/dashboard/ReceiveCashModal.tsx
-import { useState, useEffect, useRef } from "react";
+// components/dashboard/MakePaymentModal.tsx
+import { useState, useEffect } from "react";
 import axios from "axios";
 import {
   BanknotesIcon,
@@ -8,57 +8,52 @@ import {
   PencilSquareIcon,
 } from "@heroicons/react/24/outline";
 
-interface Agent {
-  _id: string;
-  name: string;
-  commPercent?: number;
-}
-
 interface Account {
   _id: string;
   name: string;
   type: string;
-  linkedEntityType: string;
   linkedEntityId: string;
+}
+
+interface Agent {
+  _id: string;
+  name: string;
 }
 
 interface AgentWithAccount extends Agent {
   account?: Account;
 }
 
-interface ReceiveCashModalProps {
+interface MakePaymentModalProps {
   isOpen: boolean;
   onClose: () => void;
   agentId: string | null;
   agentName: string | null;
-  onCashReceived: (receiptInfo: SavedReceiptInfo) => void;
+  onPaymentMade: (paymentInfo: SavedPaymentInfo) => void;
 }
 
-interface SavedReceiptInfo {
+interface SavedPaymentInfo {
   transactionNumber: string;
   amount: number;
-  commissionAmount?: number;
 }
 
-const ReceiveCashModal = ({
+const MakePaymentModal = ({
   isOpen,
   onClose,
   agentId,
   agentName,
-  onCashReceived,
-}: ReceiveCashModalProps) => {
+  onPaymentMade,
+}: MakePaymentModalProps) => {
   const [amount, setAmount] = useState<number | "">("");
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
   const [note, setNote] = useState("");
-  const [commissionAmount, setCommissionAmount] = useState<number | undefined>(undefined);
+  const [toAccountId, setToAccountId] = useState("");
   const [agentWithAccount, setAgentWithAccount] = useState<AgentWithAccount | null>(null);
   const [cashAccount, setCashAccount] = useState<Account | null>(null);
+  const [recipientAccounts, setRecipientAccounts] = useState<Account[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  
-  // Track if commission amount is manually edited
-  const isCommissionAmountFocused = useRef(false);
 
-  // Fetch agent details with linked account and cash account when modal opens
+  // Fetch agent details, cash account, and recipient accounts when modal opens
   useEffect(() => {
     const fetchData = async () => {
       if (!agentId) {
@@ -91,15 +86,24 @@ const ReceiveCashModal = ({
           account: agentAccount
         });
         
-        // Fetch cash account if not already loaded
-        if (!cashAccount) {
-          const cashAccountResponse = await axios.get("/api/accounts?type=cash");
-          if (cashAccountResponse.data && cashAccountResponse.data.length > 0) {
-            setCashAccount(cashAccountResponse.data[0]);
-          } else {
-            console.error("No cash account found!");
-          }
+        // Fetch cash account
+        const cashAccountResponse = await axios.get("/api/accounts?type=cash");
+        if (cashAccountResponse.data && cashAccountResponse.data.length > 0) {
+          setCashAccount(cashAccountResponse.data[0]);
+        } else {
+          console.error("No cash account found!");
         }
+
+        // Fetch all accounts and filter for recipients
+        const allAccountsResponse = await axios.get("/api/accounts");
+        const allAccounts = allAccountsResponse.data;
+        
+        // Filter for recipient accounts (exclude cash and agent accounts)
+        const recipients = allAccounts.filter((acc: Account) => 
+          acc.type === "recipient"
+        );
+        setRecipientAccounts(recipients);
+        
       } catch (error) {
         console.error("Error fetching data:", error);
       } finally {
@@ -115,44 +119,16 @@ const ReceiveCashModal = ({
     }
   }, [isOpen, agentId]);
 
-  // Calculate commission automatically based on agent's percentage and amount
-  useEffect(() => {
-    if (agentWithAccount?.commPercent && typeof amount === 'number') {
-      // Only update if the user hasn't manually changed it
-      if (!isCommissionAmountFocused.current) {
-        setCommissionAmount(amount * (agentWithAccount.commPercent / 100));
-      }
-    } else {
-      if (!isCommissionAmountFocused.current) {
-        setCommissionAmount(undefined);
-      }
-    }
-  }, [amount, agentWithAccount]);
-
   const resetForm = () => {
     setAmount("");
     setDate(new Date().toISOString().split("T")[0]);
     setNote("");
-    setCommissionAmount(undefined);
-    isCommissionAmountFocused.current = false;
+    setToAccountId("");
   };
 
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setAmount(value === "" ? "" : Number(value));
-  };
-
-  const handleCommissionChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    setCommissionAmount(value === "" ? undefined : Number(value));
-  };
-  
-  const handleCommissionFocus = () => {
-    isCommissionAmountFocused.current = true;
-  };
-  
-  const handleCommissionBlur = () => {
-    isCommissionAmountFocused.current = false;
   };
 
   const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -161,6 +137,10 @@ const ReceiveCashModal = ({
 
   const handleNoteChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setNote(e.target.value);
+  };
+
+  const handleToAccountChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setToAccountId(e.target.value);
   };
 
   const handleSave = async () => {
@@ -172,6 +152,11 @@ const ReceiveCashModal = ({
     
     if (typeof amount !== 'number' || amount <= 0) {
       alert("Please enter a valid amount.");
+      return;
+    }
+    
+    if (!toAccountId) {
+      alert("Please select a recipient account.");
       return;
     }
     
@@ -188,31 +173,30 @@ const ReceiveCashModal = ({
     setIsLoading(true);
     
     try {
-      const receiptData = {
-        fromAccount: agentWithAccount.account._id, // Money is coming FROM the agent's account
-        toAccount: cashAccount._id,              // Money is going TO our cash account
+      const paymentData = {
+        fromAccount: cashAccount._id,                    // Money is going FROM our cash account
+        toAccount: toAccountId,                         // Money is going TO the recipient account
+        effectedAccount: agentWithAccount.account._id,  // This payment affects the agent's account
         amount: amount,
         date: date,
         note: note,
-        type: "receipt",
-        commissionAmount: commissionAmount || 0, // FIXED: Changed from 'commission' to 'commissionAmount'
+        type: "payment",
       };
 
-      const response = await axios.post("/api/transactions", receiptData);
-      console.log("Cash receipt created:", response.data);
+      const response = await axios.post("/api/transactions", paymentData);
+      console.log("Payment created:", response.data);
 
-      const savedInfo: SavedReceiptInfo = {
+      const savedInfo: SavedPaymentInfo = {
         transactionNumber: response.data.transactionNumber,
         amount: response.data.amount,
-        commissionAmount: response.data.commissionAmount, // FIXED: Use commissionAmount from response
       };
 
-      onCashReceived(savedInfo);
+      onPaymentMade(savedInfo);
       resetForm();
       onClose();
     } catch (error: any) {
-      console.error("Error creating receipt:", error);
-      alert(`Failed to receive cash: ${error.response?.data?.error || error.message}`);
+      console.error("Error creating payment:", error);
+      alert(`Failed to make payment: ${error.response?.data?.error || error.message}`);
     } finally {
       setIsLoading(false);
     }
@@ -226,7 +210,7 @@ const ReceiveCashModal = ({
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center">
       <div className="bg-white rounded-lg shadow-lg w-full max-w-xl p-6">
         <h2 className="text-base md:text-lg font-semibold mb-3 md:mb-4">
-          Enter New Receipt
+          Make New Payment
         </h2>
 
         {!agentWithAccount?.account && agentId && !isLoading && (
@@ -239,10 +223,10 @@ const ReceiveCashModal = ({
           onSubmit={(e) => e.preventDefault()}
           className="space-y-6"
         >
-          {/* Agent Account (Read-only Input) */}
+          {/* From Agent (Read-only Input) */}
           <div className="space-y-1">
             <label className="block text-sm font-medium text-gray-700">
-              Agent Account
+              From Agent
             </label>
             <div className="relative">
               <UserCircleIcon className="h-5 w-5 absolute top-2.5 left-3 text-gray-400" />
@@ -255,10 +239,33 @@ const ReceiveCashModal = ({
             </div>
           </div>
 
+          {/* To Account (Recipient Selection) */}
+          <div className="space-y-1">
+            <label className="block text-sm font-medium text-gray-700">
+              To Account (Recipient)
+            </label>
+            <div className="relative">
+              <UserCircleIcon className="h-5 w-5 absolute top-2.5 left-3 text-gray-400" />
+              <select
+                value={toAccountId}
+                onChange={handleToAccountChange}
+                required
+                className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+              >
+                <option value="">-- Select Recipient Account --</option>
+                {recipientAccounts.map((acc) => (
+                  <option key={acc._id} value={acc._id}>
+                    {acc.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
           {/* Amount */}
           <div className="space-y-1">
             <label className="block text-sm font-medium text-gray-700">
-              Amount Received
+              Amount to Pay
             </label>
             <div className="relative">
               <BanknotesIcon className="h-5 w-5 absolute top-2.5 left-3 text-gray-400" />
@@ -269,25 +276,6 @@ const ReceiveCashModal = ({
                 required
                 className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
                 placeholder="Enter amount"
-              />
-            </div>
-          </div>
-
-          {/* Commission Amount */}
-          <div className="space-y-1">
-            <label className="block text-sm font-medium text-gray-700">
-              Commission Amount
-            </label>
-            <div className="relative">
-              <BanknotesIcon className="h-5 w-5 absolute top-2.5 left-3 text-gray-400" />
-              <input
-                type="number"
-                value={commissionAmount !== undefined ? commissionAmount.toFixed(2) : ""}
-                onChange={handleCommissionChange}
-                onFocus={handleCommissionFocus}
-                onBlur={handleCommissionBlur}
-                className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
-                placeholder="Enter commission amount"
               />
             </div>
           </div>
@@ -338,14 +326,14 @@ const ReceiveCashModal = ({
             <button
               type="button"
               onClick={handleSave}
-              disabled={isLoading ||  !cashAccount}
+              disabled={isLoading || !cashAccount || !toAccountId}
               className={`w-auto ${
-                 !cashAccount || isLoading
+                !cashAccount || isLoading || !toAccountId
                   ? "bg-blue-400 cursor-not-allowed"
                   : "bg-blue-700 hover:bg-blue-800"
               } text-white font-medium py-2 px-4 rounded-md transition focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50`}
             >
-              {isLoading ? "Saving..." : "Save Receipt"}
+              {isLoading ? "Processing..." : "Make Payment"}
             </button>
           </div>
         </form>
@@ -354,4 +342,4 @@ const ReceiveCashModal = ({
   );
 };
 
-export default ReceiveCashModal;
+export default MakePaymentModal;
