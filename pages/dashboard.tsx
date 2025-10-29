@@ -1,36 +1,13 @@
-// pages/dashboard.tsx
-
+// pages/dashboard.tsx - Refactored with React Query
 import Layout from "@/components/layout/Layout";
 import SummaryCards from "@/components/dashboard/SummaryCards";
 import AgentCard from "@/components/dashboard/AgentCard";
 import ReceiveCashModal from "@/components/dashboard/ReceiveCashModal";
-import { useState, useEffect } from "react";
-import axios from "axios";
 import MakePaymentModal from "@/components/dashboard/MakePaymentModal";
-
-interface Agent {
-  _id: string;
-  name: string;
-}
-
-interface Account {
-  _id: string;
-  name: string;
-  type: "agent" | "recipient" | "cash" | "income" | "employee" | "expense";
-  linkedEntityId: string | null;
-  balance: number;
-}
-
-interface Transaction {
-  _id: string;
-  fromAccount: { _id: string; name: string };
-  toAccount: { _id: string; name: string };
-  effectedAccount?: { _id: string; name: string };
-  amount: number;
-  date: string;
-  type: "receipt" | "payment";
-  commissionAmount?: number;
-}
+import { useState } from "react";
+import { useAgents } from "@/hooks/queries/useAgents";
+import { useAccounts } from "@/hooks/queries/useAgents";
+import { useTransactions } from "@/hooks/queries/useAgents";
 
 interface SavedReceiptInfo {
   transactionNumber: string;
@@ -44,88 +21,48 @@ interface SavedPaymentInfo {
 }
 
 export default function Dashboard() {
-  const [agents, setAgents] = useState<Agent[]>([]);
-  const [accounts, setAccounts] = useState<Account[]>([]);
-  const [todayReceipts, setTodayReceipts] = useState<Transaction[]>([]);
-  const [todayPayments, setTodayPayments] = useState<Transaction[]>([]);
-  const [receiptSuccess, setReceiptSuccess] = useState<SavedReceiptInfo | null>(
-    null
-  );
-  const [paymentSuccess, setPaymentSuccess] = useState<SavedPaymentInfo | null>(
-    null
-  );
+  const [receiptSuccess, setReceiptSuccess] = useState<SavedReceiptInfo | null>(null);
+  const [paymentSuccess, setPaymentSuccess] = useState<SavedPaymentInfo | null>(null);
+  const [isReceiveModalOpen, setIsReceiveModalOpen] = useState(false);
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
+  const [selectedAgentName, setSelectedAgentName] = useState<string | null>(null);
 
   const today = new Date().toISOString().split("T")[0];
 
-  useEffect(() => {
-    axios
-      .get("/api/agents")
-      .then((res) => setAgents(res.data))
-      .catch((err) => console.error("Failed to load agents", err));
-
-    axios
-      .get("/api/accounts")
-      .then((res) => setAccounts(res.data))
-      .catch((err) => console.error("Failed to load accounts", err));
-
-    axios
-      .get(`/api/transactions?type=receipt&date=${today}`)
-      .then((res) => setTodayReceipts(res.data))
-      .catch((err) => console.error("Failed to load today's receipts", err));
-
-    axios
-      .get(`/api/transactions?type=payment&date=${today}`)
-      .then((res) => setTodayPayments(res.data))
-      .catch((err) => console.error("Failed to load today's payments", err));
-  }, [today]);
+  // React Query hooks - automatic caching and refetching
+  const { data: agents = [], isLoading: agentsLoading } = useAgents();
+  const { data: accounts = [], isLoading: accountsLoading } = useAccounts();
+  const { data: todayReceipts = [] } = useTransactions("receipt", today);
+  const { data: todayPayments = [] } = useTransactions("payment", today);
 
   const getAgentAccount = (agentId: string) => {
     return accounts.find(
-      (acc) => acc.type === "agent" && acc.linkedEntityId === agentId
+      (acc: any) => acc.type === "agent" && acc.linkedEntityId === agentId
     );
   };
 
   const getAgentData = (agentId: string) => {
     const account = getAgentAccount(agentId);
     const opening = account?.balance || 0;
-    console.log(account, "account");
+
     const agentReceipts = todayReceipts.filter(
-      (r) => r.fromAccount?._id === account?._id
+      (r: any) => r.fromAccount?._id === account?._id
     );
-    
-    // Updated logic: Use effectedAccount to identify which agent had cash deducted
+
     const agentPayments = todayPayments.filter(
-      (p) => p.effectedAccount?._id === account?._id
-      
+      (p: any) => p.effectedAccount?._id === account?._id
     );
-    
 
-    console.log(todayPayments, "todayPayments");
-    console.log(todayReceipts, "todayReceipts");
-    console.log(agentPayments, "agentpayments");
-
-
-    const received = agentReceipts.reduce((sum, r) => sum + r.amount, 0);
+    const received = agentReceipts.reduce((sum: number, r: any) => sum + r.amount, 0);
     const commission = agentReceipts.reduce(
-      (sum, r) => sum + (r.commissionAmount || 0),
+      (sum: number, r: any) => sum + (r.commissionAmount || 0),
       0
     );
-    const paid = agentPayments.reduce((sum, p) => sum + p.amount, 0);
-    console.log(paid, "paid");
-    console.log(commission, "commission");
-    console.log(received, "received");
+    const paid = agentPayments.reduce((sum: number, p: any) => sum + p.amount, 0);
 
     return { opening, received, commission, paid };
   };
-
-  const [isReceiveModalOpen, setIsReceiveModalOpen] = useState(false);
-  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
-  const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
-  const [selectedAgentName, setSelectedAgentName] = useState<string | null>(
-    null
-  );
-
-  
 
   const handleReceiveCashClick = (agentId: string, agentName: string) => {
     setSelectedAgentId(agentId);
@@ -138,7 +75,7 @@ export default function Dashboard() {
     setSelectedAgentId(agentId);
     setSelectedAgentName(agentName);
     setIsPaymentModalOpen(true);
-    setPaymentSuccess(null);  
+    setPaymentSuccess(null);
   };
 
   const handleCloseReceiveModal = () => {
@@ -149,48 +86,40 @@ export default function Dashboard() {
   };
 
   const handleClosePaymentModal = () => {
-    setIsPaymentModalOpen(false); 
+    setIsPaymentModalOpen(false);
     setSelectedAgentId(null);
     setSelectedAgentName(null);
-    setPaymentSuccess(null); 
+    setPaymentSuccess(null);
   };
 
   const handleCashReceived = async (receiptInfo: SavedReceiptInfo) => {
     setReceiptSuccess(receiptInfo);
     setIsReceiveModalOpen(false);
-
-    axios
-      .get(`/api/transactions?type=receipt&date=${today}`)
-      .then((res) => setTodayReceipts(res.data))
-      .catch((err) => console.error("Failed to reload receipts"));
-
-    axios
-      .get("/api/accounts")
-      .then((res) => setAccounts(res.data))
-      .catch((err) => console.error("Failed to reload accounts"));
+    // React Query automatically refetches after mutations
   };
 
   const handleCashPayed = async (paymentInfo: SavedPaymentInfo) => {
     setPaymentSuccess(paymentInfo);
     setIsPaymentModalOpen(false);
-
-    axios
-      .get(`/api/transactions?type=payment&date=${today}`)
-      .then((res) => setTodayPayments(res.data))
-      .catch((err) => console.error("Failed to reload payments"));
-
-    axios
-      .get("/api/accounts")
-      .then((res) => setAccounts(res.data))
-      .catch((err) => console.error("Failed to reload accounts"));
+    // React Query automatically refetches after mutations
   };
 
-  const totalReceived = todayReceipts.reduce((sum, r) => sum + r.amount, 0);
+  const totalReceived = todayReceipts.reduce((sum: number, r: any) => sum + r.amount, 0);
   const totalCommission = todayReceipts.reduce(
-    (sum, r) => sum + (r.commissionAmount || 0),
+    (sum: number, r: any) => sum + (r.commissionAmount || 0),
     0
   );
-  const totalPaid = todayPayments.reduce((sum, p) => sum + p.amount, 0);
+  const totalPaid = todayPayments.reduce((sum: number, p: any) => sum + p.amount, 0);
+
+  if (agentsLoading || accountsLoading) {
+    return (
+      <Layout>
+        <div className="text-center py-12">
+          <div className="animate-pulse text-gray-600">Loading dashboard...</div>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>
@@ -210,9 +139,7 @@ export default function Dashboard() {
               {receiptSuccess.commissionAmount !== undefined && (
                 <>
                   {" "}
-                  (Commission: ₹{receiptSuccess.commissionAmount.toFixed(
-                    2
-                  )}){" "}
+                  (Commission: ₹{receiptSuccess.commissionAmount.toFixed(2)}){" "}
                 </>
               )}
             </p>
@@ -230,10 +157,8 @@ export default function Dashboard() {
         )}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {agents.map((agent) => {
-            const { opening, received, commission, paid } = getAgentData(
-              agent._id
-            );
+          {agents.map((agent: any) => {
+            const { opening, received, commission, paid } = getAgentData(agent._id);
 
             return (
               <AgentCard

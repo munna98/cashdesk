@@ -1,4 +1,4 @@
-// components/dashboard/ReceiveCashModal.tsx
+//current components/dashboard/ReceiveCashModal.tsx
 import { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import {

@@ -1,5 +1,5 @@
-import { useEffect, useState, useRef } from "react";
-import axios from "axios";
+// components/agents/AgentList.tsx - Refactored with React Query
+import { useRef, useState } from "react";
 import {
   EllipsisVerticalIcon,
   EnvelopeIcon,
@@ -7,6 +7,7 @@ import {
   MapPinIcon
 } from "@heroicons/react/24/outline";
 import Link from "next/link";
+import { useAgents, useDeleteAgent } from "@/hooks/queries/useAgents";
 
 type Agent = {
   _id: string;
@@ -20,58 +21,26 @@ type Agent = {
 };
 
 export default function AgentList() {
-  const [agents, setAgents] = useState<Agent[]>([]);
-  const [loading, setLoading] = useState(true);
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    const fetchAgents = async () => {
-      try {
-        const res = await axios.get("/api/agents");
-        setAgents(res.data);
-      } catch (error) {
-        console.error("Failed to fetch agents:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchAgents();
-  }, []);
-
-  useEffect(() => {
-    // Handle clicks outside of dropdown menu
-    function handleClickOutside(event: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setActiveMenu(null);
-      }
-    }
-
-    // Add event listener when dropdown is open
-    if (activeMenu) {
-      document.addEventListener("mousedown", handleClickOutside);
-    }
-
-    // Cleanup event listener
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [activeMenu]);
+  // Use React Query hooks
+  const { data: agents = [], isLoading, isError, error } = useAgents();
+  const deleteAgentMutation = useDeleteAgent();
 
   const toggleMenu = (id: string) => {
     setActiveMenu(activeMenu === id ? null : id);
   };
 
   const handleDelete = async (id: string) => {
-    if (confirm("Are you sure you want to delete this agent?")) {
-      try {
-        await axios.delete(`/api/agents/${id}`);
-        setAgents((prev) => prev.filter((agent) => agent._id !== id));
-      } catch (error) {
-        console.error("Failed to delete agent:", error);
-        alert("Failed to delete agent.");
-      }
+    if (!confirm("Are you sure you want to delete this agent?")) return;
+
+    try {
+      await deleteAgentMutation.mutateAsync(id);
+      // No need to manually update state - React Query handles cache invalidation
+    } catch (error: any) {
+      console.error("Failed to delete agent:", error);
+      alert(error.response?.data?.error || "Failed to delete agent.");
     }
   };
 
@@ -81,23 +50,37 @@ export default function AgentList() {
     return "bg-red-100 text-red-800";
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
-      <div className="text-center py-8 text-gray-600">Loading agents...</div>
+      <div className="text-center py-8 text-gray-600">
+        Loading agents...
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="text-center py-8 text-red-600">
+        Error loading agents: {error?.message || 'Unknown error'}
+      </div>
     );
   }
 
   if (agents.length === 0) {
     return (
       <div className="text-center py-8 text-gray-600">
-        No agents found. <Link href="/agents/form" className="text-blue-500 hover:underline">Please add an agent first</Link>.
+        No agents found.{" "}
+        <Link href="/agents/form" className="text-blue-500 hover:underline">
+          Please add an agent first
+        </Link>
+        .
       </div>
     );
   }
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      {agents.map((agent) => (
+      {agents.map((agent: Agent) => (
         <div
           key={agent._id}
           className="bg-white rounded-lg shadow border border-gray-200 overflow-hidden hover:shadow-md transition-shadow"
@@ -125,9 +108,10 @@ export default function AgentList() {
                     </Link>
                     <button
                       onClick={() => handleDelete(agent._id)}
-                      className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100"
+                      disabled={deleteAgentMutation.isPending}
+                      className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100 disabled:opacity-50"
                     >
-                      Delete
+                      {deleteAgentMutation.isPending ? 'Deleting...' : 'Delete'}
                     </button>
                   </div>
                 </div>
@@ -188,4 +172,4 @@ export default function AgentList() {
       ))}
     </div>
   );
-} 
+}
