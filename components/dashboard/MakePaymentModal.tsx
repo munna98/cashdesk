@@ -1,26 +1,24 @@
-// components/dashboard/MakePaymentModal.tsx
+// components/dashboard/MakePaymentModal.tsx - Refactored with React Query
 import { useState, useEffect } from "react";
-import axios from "axios";
 import {
   BanknotesIcon,
   UserCircleIcon,
   CalendarIcon,
   PencilSquareIcon,
 } from "@heroicons/react/24/outline";
+import { useAgent, useAccounts, useCreateTransaction } from "@/hooks/queries/useAgents";
 
 interface Account {
   _id: string;
   name: string;
   type: string;
+  linkedEntityType: string;
   linkedEntityId: string;
 }
 
-interface Agent {
+interface AgentWithAccount {
   _id: string;
   name: string;
-}
-
-interface AgentWithAccount extends Agent {
   account?: Account;
 }
 
@@ -48,74 +46,30 @@ const MakePaymentModal = ({
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
   const [note, setNote] = useState("");
   const [toAccountId, setToAccountId] = useState("");
-  const [agentWithAccount, setAgentWithAccount] = useState<AgentWithAccount | null>(null);
-  const [cashAccount, setCashAccount] = useState<Account | null>(null);
-  const [recipientAccounts, setRecipientAccounts] = useState<Account[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
 
-  // Fetch agent details, cash account, and recipient accounts when modal opens
+  // React Query hooks
+  const { data: agent, isLoading: agentLoading } = useAgent(agentId || "");
+  const { data: allAccounts = [], isLoading: accountsLoading } = useAccounts();
+  const createTransactionMutation = useCreateTransaction();
+
+  // Find the agent's account, cash account, and recipient accounts
+  const agentAccount = allAccounts.find(
+    (acc: Account) => acc.linkedEntityType === "agent" && acc.linkedEntityId === agentId
+  );
+  
+  const cashAccount = allAccounts.find((acc: Account) => acc.type === "cash");
+  
+  const recipientAccounts = allAccounts.filter((acc: Account) => acc.type === "recipient");
+
+  const agentWithAccount: AgentWithAccount | null = agent ? {
+    ...agent,
+    account: agentAccount
+  } : null;
+
+  // Reset form when modal opens
   useEffect(() => {
-    const fetchData = async () => {
-      if (!agentId) {
-        resetForm();
-        return;
-      }
-      
-      setIsLoading(true);
-      
-      try {
-        // Fetch agent details
-        const agentResponse = await axios.get(`/api/agents/${agentId}`);
-        const agent = agentResponse.data;
-
-        // Fetch agent's account
-        const agentAccountResponse = await axios.get(
-          `/api/accounts?linkedEntityType=agent&linkedEntityId=${agentId}`
-        );
-
-        let agentAccount = null;
-        if (agentAccountResponse.data && agentAccountResponse.data.length > 0) {
-          agentAccount = agentAccountResponse.data[0];
-        } else {
-          console.error(`No account found for agent ID: ${agentId}`);
-        }
-        
-        // Combine agent with its account
-        setAgentWithAccount({
-          ...agent,
-          account: agentAccount
-        });
-        
-        // Fetch cash account
-        const cashAccountResponse = await axios.get("/api/accounts?type=cash");
-        if (cashAccountResponse.data && cashAccountResponse.data.length > 0) {
-          setCashAccount(cashAccountResponse.data[0]);
-        } else {
-          console.error("No cash account found!");
-        }
-
-        // Fetch all accounts and filter for recipients
-        const allAccountsResponse = await axios.get("/api/accounts");
-        const allAccounts = allAccountsResponse.data;
-        
-        // Filter for recipient accounts (exclude cash and agent accounts)
-        const recipients = allAccounts.filter((acc: Account) => 
-          acc.type === "recipient"
-        );
-        setRecipientAccounts(recipients);
-        
-      } catch (error) {
-        console.error("Error fetching data:", error);
-      } finally {
-        setIsLoading(false);
-      }
-      
-      // Reset form fields
-      resetForm();
-    };
-    
     if (isOpen) {
-      fetchData();
+      resetForm();
     }
   }, [isOpen, agentId]);
 
@@ -170,25 +124,23 @@ const MakePaymentModal = ({
       return;
     }
 
-    setIsLoading(true);
-    
     try {
       const paymentData = {
-        fromAccount: cashAccount._id,                    // Money is going FROM our cash account
-        toAccount: toAccountId,                         // Money is going TO the recipient account
-        effectedAccount: agentWithAccount.account._id,  // This payment affects the agent's account
+        fromAccount: cashAccount._id,
+        toAccount: toAccountId,
+        effectedAccount: agentWithAccount.account._id,
         amount: amount,
         date: date,
         note: note,
-        type: "payment",
+        type: "payment" as const,
       };
 
-      const response = await axios.post("/api/transactions", paymentData);
-      console.log("Payment created:", response.data);
+      const response = await createTransactionMutation.mutateAsync(paymentData);
+      console.log("Payment created:", response);
 
       const savedInfo: SavedPaymentInfo = {
-        transactionNumber: response.data.transactionNumber,
-        amount: response.data.amount,
+        transactionNumber: response.transactionNumber,
+        amount: response.amount,
       };
 
       onPaymentMade(savedInfo);
@@ -197,14 +149,15 @@ const MakePaymentModal = ({
     } catch (error: any) {
       console.error("Error creating payment:", error);
       alert(`Failed to make payment: ${error.response?.data?.error || error.message}`);
-    } finally {
-      setIsLoading(false);
     }
   };
 
   if (!isOpen) {
     return null;
   }
+
+  const isLoading = agentLoading || accountsLoading;
+  const isSubmitting = createTransactionMutation.isPending;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center">
@@ -250,10 +203,11 @@ const MakePaymentModal = ({
                 value={toAccountId}
                 onChange={handleToAccountChange}
                 required
-                className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+                disabled={isSubmitting}
+                className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50"
               >
                 <option value="">-- Select Recipient Account --</option>
-                {recipientAccounts.map((acc) => (
+                {recipientAccounts.map((acc: Account) => ( 
                   <option key={acc._id} value={acc._id}>
                     {acc.name}
                   </option>
@@ -274,7 +228,8 @@ const MakePaymentModal = ({
                 value={amount}
                 onChange={handleAmountChange}
                 required
-                className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+                disabled={isSubmitting}
+                className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50"
                 placeholder="Enter amount"
               />
             </div>
@@ -291,7 +246,8 @@ const MakePaymentModal = ({
                 type="date"
                 value={date}
                 onChange={handleDateChange}
-                className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+                disabled={isSubmitting}
+                className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50"
               />
             </div>
           </div>
@@ -308,7 +264,8 @@ const MakePaymentModal = ({
                 value={note}
                 onChange={handleNoteChange}
                 placeholder="Optional note"
-                className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+                disabled={isSubmitting}
+                className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50"
               />
             </div>
           </div>
@@ -319,21 +276,21 @@ const MakePaymentModal = ({
               type="button"
               className="bg-gray-300 hover:bg-gray-400 text-gray-800 font-medium py-2 px-4 rounded-md transition focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-opacity-50"
               onClick={onClose}
-              disabled={isLoading}
+              disabled={isSubmitting}
             >
               Cancel
             </button>
             <button
               type="button"
               onClick={handleSave}
-              disabled={isLoading || !cashAccount || !toAccountId}
+              disabled={isSubmitting || !cashAccount || !toAccountId || isLoading}
               className={`w-auto ${
-                !cashAccount || isLoading || !toAccountId
+                !cashAccount || isSubmitting || !toAccountId || isLoading
                   ? "bg-blue-400 cursor-not-allowed"
                   : "bg-blue-700 hover:bg-blue-800"
               } text-white font-medium py-2 px-4 rounded-md transition focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50`}
             >
-              {isLoading ? "Processing..." : "Make Payment"}
+              {isSubmitting ? "Processing..." : "Make Payment"}
             </button>
           </div>
         </form>

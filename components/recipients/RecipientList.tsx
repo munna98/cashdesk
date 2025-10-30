@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from "react";
-import axios from "axios";
+// components/recipients/RecipientList.tsx - Refactored with React Query
+import { useRef, useState } from "react";
 import {
   EllipsisVerticalIcon,
   EnvelopeIcon,
@@ -7,6 +7,7 @@ import {
   MapPinIcon,
 } from "@heroicons/react/24/outline";
 import Link from "next/link";
+import { useRecipients, useDeleteRecipient } from "@/hooks/queries/useAgents";
 
 type Recipient = {
   _id: string;
@@ -17,75 +18,59 @@ type Recipient = {
 };
 
 export default function RecipientList() {
-  const [recipients, setRecipients] = useState<Recipient[]>([]);
-  const [loading, setLoading] = useState(true);
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    const fetchRecipients = async () => {
-      try {
-        const res = await axios.get("/api/recipients");
-        setRecipients(res.data);
-      } catch (error) {
-        console.error("Failed to fetch recipients:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchRecipients();
-  }, []);
-
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setActiveMenu(null);
-      }
-    }
-
-    if (activeMenu) {
-      document.addEventListener("mousedown", handleClickOutside);
-    }
-
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [activeMenu]);
+  // Use React Query hooks
+  const { data: recipients = [], isLoading, isError, error } = useRecipients();
+  const deleteRecipientMutation = useDeleteRecipient();
 
   const toggleMenu = (id: string) => {
     setActiveMenu(activeMenu === id ? null : id);
   };
 
   const handleDelete = async (id: string) => {
-    if (confirm("Are you sure you want to delete this recipient?")) {
-      try {
-        await axios.delete(`/api/recipients/${id}`);
-        setRecipients((prev) => prev.filter((r) => r._id !== id));
-      } catch (error) {
-        console.error("Failed to delete recipient:", error);
-        alert("Failed to delete recipient.");
-      }
+    if (!confirm("Are you sure you want to delete this recipient?")) return;
+
+    try {
+      await deleteRecipientMutation.mutateAsync(id);
+    } catch (error: any) {
+      console.error("Failed to delete recipient:", error);
+      alert(error.response?.data?.error || "Failed to delete recipient.");
     }
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
-      <div className="text-center py-8 text-gray-600">Loading recipients...</div>
+      <div className="text-center py-8 text-gray-600">
+        Loading recipients...
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="text-center py-8 text-red-600">
+        Error loading recipients: {error?.message || 'Unknown error'}
+      </div>
     );
   }
 
   if (recipients.length === 0) {
     return (
       <div className="text-center py-8 text-gray-600">
-        No recipients found. <Link href="/recipients/form" className="text-blue-500 hover:underline">Please add a recipient first</Link>.
+        No recipients found.{" "}
+        <Link href="/recipients/form" className="text-blue-500 hover:underline">
+          Please add a recipient first
+        </Link>
+        .
       </div>
     );
   }
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      {recipients.map((recipient) => (
+      {recipients.map((recipient: Recipient) => (
         <div
           key={recipient._id}
           className="bg-white rounded-lg shadow border border-gray-200 overflow-hidden hover:shadow-md transition-shadow"
@@ -115,9 +100,10 @@ export default function RecipientList() {
                     </Link>
                     <button
                       onClick={() => handleDelete(recipient._id)}
-                      className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100"
+                      disabled={deleteRecipientMutation.isPending}
+                      className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100 disabled:opacity-50"
                     >
-                      Delete
+                      {deleteRecipientMutation.isPending ? 'Deleting...' : 'Delete'}
                     </button>
                   </div>
                 </div>

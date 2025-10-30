@@ -1,18 +1,12 @@
-//current components/dashboard/ReceiveCashModal.tsx
+// components/dashboard/ReceiveCashModal.tsx - Refactored with React Query
 import { useState, useEffect, useRef } from "react";
-import axios from "axios";
 import {
   BanknotesIcon,
   UserCircleIcon,
   CalendarIcon,
   PencilSquareIcon,
 } from "@heroicons/react/24/outline";
-
-interface Agent {
-  _id: string;
-  name: string;
-  commPercent?: number;
-}
+import { useAgent, useAccounts, useCreateTransaction } from "@/hooks/queries/useAgents";
 
 interface Account {
   _id: string;
@@ -22,7 +16,10 @@ interface Account {
   linkedEntityId: string;
 }
 
-interface AgentWithAccount extends Agent {
+interface AgentWithAccount {
+  _id: string;
+  name: string;
+  commPercent?: number;
   account?: Account;
 }
 
@@ -51,74 +48,29 @@ const ReceiveCashModal = ({
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
   const [note, setNote] = useState("");
   const [commissionAmount, setCommissionAmount] = useState<number | undefined>(undefined);
-  const [agentWithAccount, setAgentWithAccount] = useState<AgentWithAccount | null>(null);
-  const [cashAccount, setCashAccount] = useState<Account | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
   
-  // Track if commission amount is manually edited
   const isCommissionAmountFocused = useRef(false);
 
-  // Fetch agent details with linked account and cash account when modal opens
-  useEffect(() => {
-    const fetchData = async () => {
-      if (!agentId) {
-        resetForm();
-        return;
-      }
-      
-      setIsLoading(true);
-      
-      try {
-        // Fetch agent details
-        const agentResponse = await axios.get(`/api/agents/${agentId}`);
-        const agent = agentResponse.data;
+  // React Query hooks
+  const { data: agent, isLoading: agentLoading } = useAgent(agentId || "");
+  const { data: allAccounts = [], isLoading: accountsLoading } = useAccounts();
+  const createTransactionMutation = useCreateTransaction();
 
-        // Fetch agent's account
-        const agentAccountResponse = await axios.get(
-          `/api/accounts?linkedEntityType=agent&linkedEntityId=${agentId}`
-        );
+  // Find the agent's account and cash account
+  const agentAccount = allAccounts.find(
+    (acc: Account) => acc.linkedEntityType === "agent" && acc.linkedEntityId === agentId
+  );
+  
+  const cashAccount = allAccounts.find((acc: Account) => acc.type === "cash");
 
-        let agentAccount = null;
-        if (agentAccountResponse.data && agentAccountResponse.data.length > 0) {
-          agentAccount = agentAccountResponse.data[0];
-        } else {
-          console.error(`No account found for agent ID: ${agentId}`);
-        }
-        
-        // Combine agent with its account
-        setAgentWithAccount({
-          ...agent,
-          account: agentAccount
-        });
-        
-        // Fetch cash account if not already loaded
-        if (!cashAccount) {
-          const cashAccountResponse = await axios.get("/api/accounts?type=cash");
-          if (cashAccountResponse.data && cashAccountResponse.data.length > 0) {
-            setCashAccount(cashAccountResponse.data[0]);
-          } else {
-            console.error("No cash account found!");
-          }
-        }
-      } catch (error) {
-        console.error("Error fetching data:", error);
-      } finally {
-        setIsLoading(false);
-      }
-      
-      // Reset form fields
-      resetForm();
-    };
-    
-    if (isOpen) {
-      fetchData();
-    }
-  }, [isOpen, agentId]);
+  const agentWithAccount: AgentWithAccount | null = agent ? {
+    ...agent,
+    account: agentAccount
+  } : null;
 
-  // Calculate commission automatically based on agent's percentage and amount
+  // Calculate commission automatically
   useEffect(() => {
     if (agentWithAccount?.commPercent && typeof amount === 'number') {
-      // Only update if the user hasn't manually changed it
       if (!isCommissionAmountFocused.current) {
         setCommissionAmount(amount * (agentWithAccount.commPercent / 100));
       }
@@ -128,6 +80,13 @@ const ReceiveCashModal = ({
       }
     }
   }, [amount, agentWithAccount]);
+
+  // Reset form when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      resetForm();
+    }
+  }, [isOpen, agentId]);
 
   const resetForm = () => {
     setAmount("");
@@ -185,26 +144,24 @@ const ReceiveCashModal = ({
       return;
     }
 
-    setIsLoading(true);
-    
     try {
       const receiptData = {
-        fromAccount: agentWithAccount.account._id, // Money is coming FROM the agent's account
-        toAccount: cashAccount._id,              // Money is going TO our cash account
+        fromAccount: agentWithAccount.account._id,
+        toAccount: cashAccount._id,
         amount: amount,
         date: date,
         note: note,
-        type: "receipt",
-        commissionAmount: commissionAmount || 0, // FIXED: Changed from 'commission' to 'commissionAmount'
+        type: "receipt" as const,
+        commissionAmount: commissionAmount || 0,
       };
 
-      const response = await axios.post("/api/transactions", receiptData);
-      console.log("Cash receipt created:", response.data);
+      const response = await createTransactionMutation.mutateAsync(receiptData);
+      console.log("Cash receipt created:", response);
 
       const savedInfo: SavedReceiptInfo = {
-        transactionNumber: response.data.transactionNumber,
-        amount: response.data.amount,
-        commissionAmount: response.data.commissionAmount, // FIXED: Use commissionAmount from response
+        transactionNumber: response.transactionNumber,
+        amount: response.amount,
+        commissionAmount: response.commissionAmount,
       };
 
       onCashReceived(savedInfo);
@@ -213,14 +170,15 @@ const ReceiveCashModal = ({
     } catch (error: any) {
       console.error("Error creating receipt:", error);
       alert(`Failed to receive cash: ${error.response?.data?.error || error.message}`);
-    } finally {
-      setIsLoading(false);
     }
   };
 
   if (!isOpen) {
     return null;
   }
+
+  const isLoading = agentLoading || accountsLoading;
+  const isSubmitting = createTransactionMutation.isPending;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center">
@@ -267,7 +225,8 @@ const ReceiveCashModal = ({
                 value={amount}
                 onChange={handleAmountChange}
                 required
-                className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+                disabled={isSubmitting}
+                className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50"
                 placeholder="Enter amount"
               />
             </div>
@@ -286,7 +245,8 @@ const ReceiveCashModal = ({
                 onChange={handleCommissionChange}
                 onFocus={handleCommissionFocus}
                 onBlur={handleCommissionBlur}
-                className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+                disabled={isSubmitting}
+                className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50"
                 placeholder="Enter commission amount"
               />
             </div>
@@ -303,7 +263,8 @@ const ReceiveCashModal = ({
                 type="date"
                 value={date}
                 onChange={handleDateChange}
-                className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+                disabled={isSubmitting}
+                className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50"
               />
             </div>
           </div>
@@ -320,7 +281,8 @@ const ReceiveCashModal = ({
                 value={note}
                 onChange={handleNoteChange}
                 placeholder="Optional note"
-                className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+                disabled={isSubmitting}
+                className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50"
               />
             </div>
           </div>
@@ -331,21 +293,21 @@ const ReceiveCashModal = ({
               type="button"
               className="bg-gray-300 hover:bg-gray-400 text-gray-800 font-medium py-2 px-4 rounded-md transition focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-opacity-50"
               onClick={onClose}
-              disabled={isLoading}
+              disabled={isSubmitting}
             >
               Cancel
             </button>
             <button
               type="button"
               onClick={handleSave}
-              disabled={isLoading ||  !cashAccount}
+              disabled={isSubmitting || !cashAccount || isLoading}
               className={`w-auto ${
-                 !cashAccount || isLoading
+                !cashAccount || isSubmitting || isLoading
                   ? "bg-blue-400 cursor-not-allowed"
                   : "bg-blue-700 hover:bg-blue-800"
               } text-white font-medium py-2 px-4 rounded-md transition focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50`}
             >
-              {isLoading ? "Saving..." : "Save Receipt"}
+              {isSubmitting ? "Saving..." : "Save Receipt"}
             </button>
           </div>
         </form>

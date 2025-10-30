@@ -1,53 +1,40 @@
+// components/account/AccountList.tsx - Refactored with React Query
 import { useEffect, useState, useRef } from "react";
-import axios from "axios";
 import Link from "next/link";
 import { useRouter } from "next/router";
-
 import {
   EllipsisVerticalIcon,
   BanknotesIcon,
 } from "@heroicons/react/24/outline";
+import { useAccounts, useDeleteAccount } from "@/hooks/queries/useAgents";
 
 type Account = {
   _id: string;
   name: string;
   type: string;
   balance: number;
-  linkedEntityId?: string | null; // Ensure linkedEntityId can be null
+  linkedEntityId?: string | null;
 };
 
 const ACCOUNT_TYPES = ["all", "cash", "bank", "income", "expense"];
 
 export default function AccountList() {
-  const [accounts, setAccounts] = useState<Account[]>([]);
   const [filteredAccounts, setFilteredAccounts] = useState<Account[]>([]);
-  const [loading, setLoading] = useState(true);
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<string>("all");
 
   const menuRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
 
-  useEffect(() => {
-    const fetchAccounts = async () => {
-      try {
-        const res = await axios.get("/api/accounts");
-        setAccounts(res.data);
-      } catch (error) {
-        console.error("Failed to fetch accounts:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchAccounts();
-  }, []);
+  // Use React Query hooks
+  const { data: accounts = [], isLoading, isError } = useAccounts();
+  const deleteAccountMutation = useDeleteAccount();
 
   useEffect(() => {
     if (activeTab === "all") {
       setFilteredAccounts(accounts);
     } else {
-      setFilteredAccounts(accounts.filter((acc) => acc.type === activeTab));
+      setFilteredAccounts(accounts.filter((acc: Account) => acc.type === activeTab));
     }
   }, [accounts, activeTab]);
 
@@ -72,14 +59,13 @@ export default function AccountList() {
   };
 
   const handleDelete = async (id: string) => {
-    if (confirm("Are you sure you want to delete this account?")) {
-      try {
-        await axios.delete(`/api/accounts/${id}`);
-        setAccounts((prev) => prev.filter((acc) => acc._id !== id));
-      } catch (error) {
-        console.error("Failed to delete account:", error);
-        alert("Failed to delete account.");
-      }
+    if (!confirm("Are you sure you want to delete this account?")) return;
+
+    try {
+      await deleteAccountMutation.mutateAsync(id);
+    } catch (error: any) {
+      console.error("Failed to delete account:", error);
+      alert(error.response?.data?.error || "Failed to delete account.");
     }
   };
 
@@ -102,8 +88,16 @@ export default function AccountList() {
     }
   };
 
-  if (loading) {
+  if (isLoading) {
     return <div className="text-center py-8 text-gray-600">Loading accounts...</div>;
+  }
+
+  if (isError) {
+    return (
+      <div className="text-center py-8 text-red-600">
+        Error loading accounts. Please try again.
+      </div>
+    );
   }
 
   return (
@@ -157,9 +151,10 @@ export default function AccountList() {
                       {account.linkedEntityId === null && (
                         <button
                           onClick={() => handleDelete(account._id)}
-                          className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100"
+                          disabled={deleteAccountMutation.isPending}
+                          className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100 disabled:opacity-50"
                         >
-                          Delete
+                          {deleteAccountMutation.isPending ? 'Deleting...' : 'Delete'}
                         </button>
                       )}
                     </div>

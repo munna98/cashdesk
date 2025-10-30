@@ -1,11 +1,12 @@
+// components/transactions/ReceiptForm.tsx - Refactored with React Query
 import { useState, useEffect, useRef } from "react";
-import axios from "axios";
 import {
   BanknotesIcon,
   CalendarIcon,
   UserCircleIcon,
   PencilSquareIcon,
 } from "@heroicons/react/24/outline";
+import { useAgents, useAccounts, useCreateTransaction } from "@/hooks/queries/useAgents";
 
 interface Agent {
   _id: string;
@@ -35,65 +36,41 @@ interface ReceiptFormProps {
 }
 
 export default function ReceiptForm({ onReceiptSaved }: ReceiptFormProps) {
-  const [agents, setAgents] = useState<AgentWithAccount[]>([]);
-  const [cashAccountId, setCashAccountId] = useState("");
   const [selectedAgentId, setSelectedAgentId] = useState("");
   const [amount, setAmount] = useState("");
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
   const [note, setNote] = useState("");
-  const [type, setType] = useState("receipt");
-  const [savedReceipt, setSavedReceipt] = useState<SavedReceiptInfo | null>(null);
   const [commissionAmount, setCommissionAmount] = useState<number | undefined>(undefined);
+  const [savedReceipt, setSavedReceipt] = useState<SavedReceiptInfo | null>(null);
 
-  // State to track if the commission amount input is currently focused
   const isCommissionAmountFocused = useRef(false);
 
-  // Load agents, accounts, and link them together
-  useEffect(() => {
-    // Fetch agents
-    const fetchData = async () => {
-      try {
-        // Get all agents
-        const agentsRes = await axios.get("/api/agents");
-        const agentsData = agentsRes.data;
-        
-        // Get all accounts
-        const accountsRes = await axios.get("/api/accounts");
-        const accountsData = accountsRes.data;
-        
-        // Link agents with their accounts
-        const agentsWithAccounts = agentsData.map((agent: Agent) => {
-          const agentAccount = accountsData.find(
-            (account: Account) => 
-              account.linkedEntityId?.toString() === agent._id?.toString()
-          );
-          
-          return {
-            ...agent,
-            account: agentAccount || null
-          };
-        });
-        
-        setAgents(agentsWithAccounts);
-        
-        // Find cash account
-        const cashAccount = accountsData.find((account: Account) => account.type === 'cash');
-        if (cashAccount) {
-          setCashAccountId(cashAccount._id);
-        }
-      } catch (err) {
-        console.error("Failed to load data:", err);
-      }
-    };
+  // React Query hooks
+  const { data: agentsData = [], isLoading: agentsLoading } = useAgents();
+  const { data: accountsData = [], isLoading: accountsLoading } = useAccounts();
+  const createTransactionMutation = useCreateTransaction();
+
+  // Find cash account
+  const cashAccount = accountsData.find((account: Account) => account.type === 'cash');
+  const cashAccountId = cashAccount?._id || "";
+
+  // Link agents with their accounts
+  const agents: AgentWithAccount[] = agentsData.map((agent: Agent) => {
+    const agentAccount = accountsData.find(
+      (account: Account) => 
+        account.linkedEntityId?.toString() === agent._id?.toString()
+    );
     
-    fetchData();
-  }, []);
+    return {
+      ...agent,
+      account: agentAccount || undefined
+    };
+  });
 
   // Update commission amount automatically when agent or amount changes
   useEffect(() => {
     const selectedAgent = agents.find((agent) => agent._id === selectedAgentId);
     if (selectedAgent && selectedAgent.commPercent && amount) {
-      // Only update if the user hasn't manually changed it
       if (!isCommissionAmountFocused.current) {
         setCommissionAmount(Number(amount) * (selectedAgent.commPercent / 100));
       }
@@ -116,7 +93,6 @@ export default function ReceiptForm({ onReceiptSaved }: ReceiptFormProps) {
     isCommissionAmountFocused.current = false;
   };
 
-  // Submit receipt to backend
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -125,7 +101,6 @@ export default function ReceiptForm({ onReceiptSaved }: ReceiptFormProps) {
       return;
     }
 
-    // Find the selected agent and get their account ID
     const selectedAgent = agents.find(agent => agent._id === selectedAgentId);
     if (!selectedAgent || !selectedAgent.account) {
       alert("Agent has no linked account. Please set up the agent account first.");
@@ -133,23 +108,23 @@ export default function ReceiptForm({ onReceiptSaved }: ReceiptFormProps) {
     }
 
     const receipt = {
-      fromAccount: selectedAgent.account._id, // Use the agent's account ID instead of agent ID
-      toAccount: cashAccountId, // default cash account
+      fromAccount: selectedAgent.account._id,
+      toAccount: cashAccountId,
       amount: Number(amount),
       date,
       note,
-      type,
-      commissionAmount: commissionAmount || 0, // Include commission in the transaction
+      type: "receipt" as const,
+      commissionAmount: commissionAmount || 0,
     };
 
     try {
-      const res = await axios.post("/api/transactions", receipt);
-      console.log("Receipt saved:", res.data);
+      const response = await createTransactionMutation.mutateAsync(receipt);
+      console.log("Receipt saved:", response);
 
       const savedInfo: SavedReceiptInfo = {
-        transactionNumber: res.data.transactionNumber,
-        amount: res.data.amount,
-        commissionAmount: res.data.commissionAmount,
+        transactionNumber: response.transactionNumber,
+        amount: response.amount,
+        commissionAmount: response.commissionAmount,
       };
       setSavedReceipt(savedInfo);
 
@@ -161,11 +136,22 @@ export default function ReceiptForm({ onReceiptSaved }: ReceiptFormProps) {
       setCommissionAmount(undefined);
 
       if (onReceiptSaved) onReceiptSaved(savedInfo);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error saving receipt:", error);
-      alert("Failed to save receipt.");
+      alert(error.response?.data?.error || "Failed to save receipt.");
     }
   };
+
+  const isLoading = agentsLoading || accountsLoading;
+  const isSubmitting = createTransactionMutation.isPending;
+
+  if (isLoading) {
+    return (
+      <div className="max-w-xl mx-auto">
+        <div className="text-center py-8 text-gray-600">Loading form...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-xl mx-auto">
@@ -204,7 +190,8 @@ export default function ReceiptForm({ onReceiptSaved }: ReceiptFormProps) {
               value={selectedAgentId}
               onChange={(e) => setSelectedAgentId(e.target.value)}
               required
-              className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+              disabled={isSubmitting}
+              className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50"
             >
               <option value="">-- Select Agent Account --</option>
               {agents.map((agent) => (
@@ -228,13 +215,14 @@ export default function ReceiptForm({ onReceiptSaved }: ReceiptFormProps) {
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               required
-              className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+              disabled={isSubmitting}
+              className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50"
               placeholder="Enter amount"
             />
           </div>
         </div>
 
-        {/* Commission Amount (Editable and Always Visible) */}
+        {/* Commission Amount */}
         <div className="space-y-1">
           <label className="block text-sm font-medium text-gray-700">
             Commission Amount
@@ -247,7 +235,8 @@ export default function ReceiptForm({ onReceiptSaved }: ReceiptFormProps) {
               onChange={handleCommissionChange}
               onFocus={handleCommissionFocus}
               onBlur={handleCommissionBlur}
-              className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+              disabled={isSubmitting}
+              className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50"
               placeholder="Enter commission amount"
             />
           </div>
@@ -264,7 +253,8 @@ export default function ReceiptForm({ onReceiptSaved }: ReceiptFormProps) {
               type="date"
               value={date}
               onChange={(e) => setDate(e.target.value)}
-              className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+              disabled={isSubmitting}
+              className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50"
             />
           </div>
         </div>
@@ -281,7 +271,8 @@ export default function ReceiptForm({ onReceiptSaved }: ReceiptFormProps) {
               value={note}
               onChange={(e) => setNote(e.target.value)}
               placeholder="Optional note"
-              className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+              disabled={isSubmitting}
+              className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50"
             />
           </div>
         </div>
@@ -290,9 +281,10 @@ export default function ReceiptForm({ onReceiptSaved }: ReceiptFormProps) {
         <div className="pt-4">
           <button
             type="submit"
-            className="w-full bg-blue-700 hover:bg-blue-800 text-white font-medium py-2 px-4 rounded-md transition"
+            disabled={isSubmitting}
+            className="w-full bg-blue-700 hover:bg-blue-800 text-white font-medium py-2 px-4 rounded-md transition disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Save Receipt
+            {isSubmitting ? "Saving..." : "Save Receipt"}
           </button>
         </div>
       </form>

@@ -1,8 +1,7 @@
-// /components/EmployeeForm.tsx
-
+// components/employees/EmployeeForm.tsx - Refactored with React Query
 import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
-import axios from "axios";
+import { useEmployee, useCreateEmployee, useUpdateEmployee } from "@/hooks/queries/useAgents";
 
 export default function EmployeeForm() {
   const router = useRouter();
@@ -16,31 +15,23 @@ export default function EmployeeForm() {
     role: "",
   });
 
-  const [isLoading, setIsLoading] = useState(true);
+  // React Query hooks
+  const { data: employee, isLoading } = useEmployee(id as string);
+  const createMutation = useCreateEmployee();
+  const updateMutation = useUpdateEmployee();
 
+  // Populate form when employee data loads
   useEffect(() => {
-    if (id) {
-      axios
-        .get(`/api/employees/${id}`)
-        .then((res) => {
-          const data = res.data;
-          setForm({
-            name: data.name || "",
-            address: data.address || "",
-            mobile: data.mobile || "",
-            email: data.email || "",
-            role: data.role || "",
-          });
-        })
-        .catch((err) => {
-          console.error("Failed to load employee:", err);
-          alert("Failed to load employee data.");
-        })
-        .finally(() => setIsLoading(false));
-    } else {
-      setIsLoading(false);
+    if (employee) {
+      setForm({
+        name: employee.name || "",
+        address: employee.address || "",
+        mobile: employee.mobile || "",
+        email: employee.email || "",
+        role: employee.role || "",
+      });
     }
-  }, [id]);
+  }, [employee]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -48,12 +39,13 @@ export default function EmployeeForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
     try {
       if (id) {
-        await axios.put(`/api/employees/${id}`, form);
+        await updateMutation.mutateAsync({ id: id as string, data: form });
         alert("Employee updated!");
       } else {
-        await axios.post("/api/employees", form);
+        await createMutation.mutateAsync(form);
         alert("Employee created!");
         setForm({
           name: "",
@@ -63,25 +55,25 @@ export default function EmployeeForm() {
           role: "",
         });
       }
-
       router.push("/employees");
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error saving employee:", error);
-      alert("Failed to save employee.");
+      alert(error.response?.data?.error || "Failed to save employee.");
     }
   };
 
-  if (isLoading) {
+  if (id && isLoading) {
     return <div className="text-center py-8 text-gray-600">Loading form...</div>;
   }
+
+  const isSubmitting = createMutation.isPending || updateMutation.isPending;
 
   return (
     <form
       onSubmit={handleSubmit}
-      // className="max-w-2xl mx-auto bg-white dark:bg-gray-800 p-6 rounded-lg shadow space-y-5"
-      className="max-w-2xl mx-auto bg-white  p-4 rounded-lg shadow space-y-5"
+      className="max-w-2xl mx-auto bg-white p-4 rounded-lg shadow space-y-5"
     >
-      <h2 className="text-xl font-semibold text-gray-800 dark:text-white mb-2">
+      <h2 className="text-xl font-semibold text-gray-800 mb-2">
         {id ? "Edit Employee" : "Add New Employee"}
       </h2>
 
@@ -94,6 +86,7 @@ export default function EmployeeForm() {
             onChange={handleChange}
             className="w-full border border-gray-300 p-2 rounded"
             required
+            disabled={isSubmitting}
           />
         </div>
         <div>
@@ -103,6 +96,7 @@ export default function EmployeeForm() {
             value={form.address}
             onChange={handleChange}
             className="w-full border border-gray-300 p-2 rounded"
+            disabled={isSubmitting}
           />
         </div>
         <div>
@@ -112,6 +106,7 @@ export default function EmployeeForm() {
             value={form.mobile}
             onChange={handleChange}
             className="w-full border border-gray-300 p-2 rounded"
+            disabled={isSubmitting}
           />
         </div>
         <div>
@@ -122,6 +117,7 @@ export default function EmployeeForm() {
             value={form.email}
             onChange={handleChange}
             className="w-full border border-gray-300 p-2 rounded"
+            disabled={isSubmitting}
           />
         </div>
         <div>
@@ -131,15 +127,20 @@ export default function EmployeeForm() {
             value={form.role}
             onChange={handleChange}
             className="w-full border border-gray-300 p-2 rounded"
+            disabled={isSubmitting}
           />
         </div>
       </div>
 
       <button
         type="submit"
-        className="bg-blue-700 text-white px-4 py-2 rounded hover:bg-green-800"
+        disabled={isSubmitting}
+        className="bg-blue-700 text-white px-4 py-2 rounded hover:bg-blue-800 disabled:opacity-50 disabled:cursor-not-allowed"
       >
-        {id ? "Update Employee" : "Save Employee"}
+        {isSubmitting 
+          ? (id ? "Updating..." : "Creating...") 
+          : (id ? "Update Employee" : "Save Employee")
+        }
       </button>
     </form>
   );

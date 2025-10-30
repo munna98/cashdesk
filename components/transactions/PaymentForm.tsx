@@ -1,11 +1,12 @@
+// components/transactions/PaymentForm.tsx - Refactored with React Query
 import { useState, useEffect } from "react";
-import axios from "axios";
 import {
   BanknotesIcon,
   CalendarIcon,
   UserCircleIcon,
   PencilSquareIcon,
 } from "@heroicons/react/24/outline";
+import { useAccounts, useCreateTransaction } from "@/hooks/queries/useAgents";
 
 interface Account {
   _id: string;
@@ -24,43 +25,33 @@ interface PaymentFormProps {
 }
 
 export default function PaymentForm({ onPaymentSaved }: PaymentFormProps) {
-  const [accounts, setAccounts] = useState<Account[]>([]);
-  const [cashAccountId, setCashAccountId] = useState("");
   const [accountId, setAccountId] = useState("");
   const [effectedAccountId, setEffectedAccountId] = useState("");
   const [amount, setAmount] = useState("");
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
   const [note, setNote] = useState("");
-  const [type, setType] = useState("payment");
   const [savedPayment, setSavedPayment] = useState<SavedPaymentInfo | null>(null);
-  const [agents, setAgents] = useState<Account[]>([]);
   const [selectedToAccountType, setSelectedToAccountType] = useState("");
 
-  // Fetch accounts and agents
+  // React Query hooks
+  const { data: allAccounts = [], isLoading: accountsLoading } = useAccounts();
+  const createTransactionMutation = useCreateTransaction();
+
+  // Find cash account
+  const cashAccount = allAccounts.find((acc: Account) => acc.type === "cash");
+  const cashAccountId = cashAccount?._id || "";
+
+  // Filter accounts (exclude cash)
+  const accounts = allAccounts.filter((acc: Account) => acc._id !== cashAccountId);
+  
+  // Get agent accounts for the "From Agent" dropdown
+  const agents = allAccounts.filter((acc: Account) => acc.type === "agent");
+
+  // Update selected account type when accountId changes
   useEffect(() => {
-    let fetchedCashAccountId = "";
-
-    axios
-      .get("/api/accounts?type=cash")
-      .then((res) => {
-        if (res.data && res.data.length > 0) {
-          fetchedCashAccountId = res.data[0]._id;
-          setCashAccountId(fetchedCashAccountId);
-        }
-        return axios.get("/api/accounts");
-      })
-      .then((res) => {
-        const allAccounts: Account[] = res.data;
-        const filteredAccounts = allAccounts.filter(
-          (acc) => acc._id !== fetchedCashAccountId
-        );
-        setAccounts(filteredAccounts);
-
-        const agentAccounts = allAccounts.filter((acc) => acc.type === "agent");
-        setAgents(agentAccounts);
-      })
-      .catch((err) => console.error("Failed to load accounts", err));
-  }, []);
+    const selected = accounts.find((acc: Account) => acc._id === accountId);
+    setSelectedToAccountType(selected?.type || "");
+  }, [accountId, accounts]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -77,16 +68,16 @@ export default function PaymentForm({ onPaymentSaved }: PaymentFormProps) {
       amount: Number(amount),
       date,
       note,
-      type,
+      type: "payment" as const,
     };
 
     try {
-      const res = await axios.post("/api/transactions", payment);
-      console.log("Payment saved:", res.data);
+      const response = await createTransactionMutation.mutateAsync(payment);
+      console.log("Payment saved:", response);
 
       setSavedPayment({
-        transactionNumber: res.data.transactionNumber,
-        amount: res.data.amount,
+        transactionNumber: response.transactionNumber,
+        amount: response.amount,
       });
 
       // Reset form
@@ -98,20 +89,22 @@ export default function PaymentForm({ onPaymentSaved }: PaymentFormProps) {
       setSelectedToAccountType("");
 
       if (onPaymentSaved) onPaymentSaved();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error saving payment:", error);
-      alert("Failed to save payment.");
+      alert(error.response?.data?.error || "Failed to save payment.");
     }
   };
 
-  // Update selected account type when accountId changes
-  useEffect(() => {
-    const selected = accounts.find((acc) => acc._id === accountId);
-    setSelectedToAccountType(selected?.type || "");
-  }, [accountId, accounts]);
+  const isLoading = accountsLoading;
+  const isSubmitting = createTransactionMutation.isPending;
 
-  console.log(effectedAccountId,"effectedAccountId");
-  
+  if (isLoading) {
+    return (
+      <div className="max-w-xl mx-auto">
+        <div className="text-center py-8 text-gray-600">Loading form...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-xl mx-auto">
@@ -144,10 +137,11 @@ export default function PaymentForm({ onPaymentSaved }: PaymentFormProps) {
               value={accountId}
               onChange={(e) => setAccountId(e.target.value)}
               required
-              className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+              disabled={isSubmitting}
+              className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50"
             >
               <option value="">-- Select Account --</option>
-              {accounts.map((acc) => (
+              {accounts.map((acc: Account) => (
                 <option key={acc._id} value={acc._id}>
                   {acc.name} ({acc.type})
                 </option>
@@ -168,10 +162,11 @@ export default function PaymentForm({ onPaymentSaved }: PaymentFormProps) {
                 value={effectedAccountId}
                 onChange={(e) => setEffectedAccountId(e.target.value)}
                 required
-                className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+                disabled={isSubmitting}
+                className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50"
               >
                 <option value="">-- Select Agent --</option>
-                {agents.map((agent) => (
+                {agents.map((agent: Account) => (
                   <option key={agent._id} value={agent._id}>
                     {agent.name}
                   </option>
@@ -193,7 +188,8 @@ export default function PaymentForm({ onPaymentSaved }: PaymentFormProps) {
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               required
-              className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+              disabled={isSubmitting}
+              className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50"
               placeholder="Enter amount"
             />
           </div>
@@ -210,7 +206,8 @@ export default function PaymentForm({ onPaymentSaved }: PaymentFormProps) {
               type="date"
               value={date}
               onChange={(e) => setDate(e.target.value)}
-              className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+              disabled={isSubmitting}
+              className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50"
             />
           </div>
         </div>
@@ -227,7 +224,8 @@ export default function PaymentForm({ onPaymentSaved }: PaymentFormProps) {
               value={note}
               onChange={(e) => setNote(e.target.value)}
               placeholder="Optional note"
-              className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+              disabled={isSubmitting}
+              className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50"
             />
           </div>
         </div>
@@ -236,9 +234,10 @@ export default function PaymentForm({ onPaymentSaved }: PaymentFormProps) {
         <div className="pt-4">
           <button
             type="submit"
-            className="w-full bg-blue-700 hover:bg-blue-800 text-white font-medium py-2 px-4 rounded-md transition"
+            disabled={isSubmitting}
+            className="w-full bg-blue-700 hover:bg-blue-800 text-white font-medium py-2 px-4 rounded-md transition disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Save Payment
+            {isSubmitting ? "Saving..." : "Save Payment"}
           </button>
         </div>
       </form>

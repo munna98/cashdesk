@@ -1,7 +1,5 @@
-// /components/EmployeeList.tsx
-
-import { useEffect, useState, useRef } from "react";
-import axios from "axios";
+// components/employees/EmployeeList.tsx - Refactored with React Query
+import { useRef, useState } from "react";
 import {
   EllipsisVerticalIcon,
   EnvelopeIcon,
@@ -10,6 +8,7 @@ import {
   BriefcaseIcon
 } from "@heroicons/react/24/outline";
 import Link from "next/link";
+import { useEmployees, useDeleteEmployee } from "@/hooks/queries/useAgents";
 
 type Employee = {
   _id: string;
@@ -21,73 +20,59 @@ type Employee = {
 };
 
 export default function EmployeeList() {
-  const [employees, setEmployees] = useState<Employee[]>([]);
-  const [loading, setLoading] = useState(true);
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    const fetchEmployees = async () => {
-      try {
-        const res = await axios.get("/api/employees");
-        setEmployees(res.data);
-      } catch (error) {
-        console.error("Failed to fetch employees:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchEmployees();
-  }, []);
-
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setActiveMenu(null);
-      }
-    }
-
-    if (activeMenu) {
-      document.addEventListener("mousedown", handleClickOutside);
-    }
-
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [activeMenu]);
+  // Use React Query hooks
+  const { data: employees = [], isLoading, isError, error } = useEmployees();
+  const deleteEmployeeMutation = useDeleteEmployee();
 
   const toggleMenu = (id: string) => {
     setActiveMenu(activeMenu === id ? null : id);
   };
 
   const handleDelete = async (id: string) => {
-    if (confirm("Are you sure you want to delete this employee?")) {
-      try {
-        await axios.delete(`/api/employees/${id}`);
-        setEmployees((prev) => prev.filter((emp) => emp._id !== id));
-      } catch (error) {
-        console.error("Failed to delete employee:", error);
-        alert("Failed to delete employee.");
-      }
+    if (!confirm("Are you sure you want to delete this employee?")) return;
+
+    try {
+      await deleteEmployeeMutation.mutateAsync(id);
+    } catch (error: any) {
+      console.error("Failed to delete employee:", error);
+      alert(error.response?.data?.error || "Failed to delete employee.");
     }
   };
 
-  if (loading) {
-    return <div className="text-center py-8 text-gray-600">Loading employees...</div>;
+  if (isLoading) {
+    return (
+      <div className="text-center py-8 text-gray-600">
+        Loading employees...
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="text-center py-8 text-red-600">
+        Error loading employees: {error?.message || 'Unknown error'}
+      </div>
+    );
   }
 
   if (employees.length === 0) {
     return (
       <div className="text-center py-8 text-gray-600">
-        No employees found. <Link href="/employees/form" className="text-blue-500 hover:underline">Please add an employee first</Link>.
+        No employees found.{" "}
+        <Link href="/employees/form" className="text-blue-500 hover:underline">
+          Please add an employee first
+        </Link>
+        .
       </div>
     );
   }
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-      {employees.map((emp) => (
+      {employees.map((emp: Employee) => (
         <div
           key={emp._id}
           className="bg-white rounded-lg shadow border border-gray-200 overflow-hidden hover:shadow-md transition-shadow"
@@ -115,9 +100,10 @@ export default function EmployeeList() {
                     </Link>
                     <button
                       onClick={() => handleDelete(emp._id)}
-                      className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100"
+                      disabled={deleteEmployeeMutation.isPending}
+                      className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100 disabled:opacity-50"
                     >
-                      Delete
+                      {deleteEmployeeMutation.isPending ? 'Deleting...' : 'Delete'}
                     </button>
                   </div>
                 </div>

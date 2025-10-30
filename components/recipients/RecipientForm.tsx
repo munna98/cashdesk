@@ -1,6 +1,7 @@
+// components/recipients/RecipientForm.tsx - Refactored with React Query
 import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
-import axios from "axios";
+import { useRecipient, useCreateRecipient, useUpdateRecipient } from "@/hooks/queries/useAgents";
 
 export default function RecipientForm() {
   const router = useRouter();
@@ -14,30 +15,23 @@ export default function RecipientForm() {
     openingBalance: "",
   });
 
-  const [isLoading, setIsLoading] = useState(true);
+  // React Query hooks
+  const { data: recipient, isLoading } = useRecipient(id as string);
+  const createMutation = useCreateRecipient();
+  const updateMutation = useUpdateRecipient();
 
+  // Populate form when recipient data loads
   useEffect(() => {
-    if (id) {
-      axios.get(`/api/recipients/${id}`)
-        .then((res) => {
-          const data = res.data;
-          setForm({
-            name: data.name || "",
-            address: data.address || "",
-            mobile: data.mobile || "",
-            email: data.email || "",
-            openingBalance: data.openingBalance?.toString() || "",
-          });
-        })
-        .catch((err) => {
-          console.error("Failed to load recipient:", err);
-          alert("Failed to load recipient data.");
-        })
-        .finally(() => setIsLoading(false));
-    } else {
-      setIsLoading(false);
+    if (recipient) {
+      setForm({
+        name: recipient.name || "",
+        address: recipient.address || "",
+        mobile: recipient.mobile || "",
+        email: recipient.email || "",
+        openingBalance: recipient.openingBalance?.toString() || "",
+      });
     }
-  }, [id]);
+  }, [recipient]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -45,17 +39,18 @@ export default function RecipientForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    try {
-      const payload = {
-        ...form,
-        openingBalance: Number(form.openingBalance),
-      };
 
+    const payload = {
+      ...form,
+      openingBalance: Number(form.openingBalance),
+    };
+
+    try {
       if (id) {
-        await axios.put(`/api/recipients/${id}`, payload);
+        await updateMutation.mutateAsync({ id: id as string, data: payload });
         alert("Recipient updated!");
       } else {
-        await axios.post("/api/recipients", payload);
+        await createMutation.mutateAsync(payload);
         alert("Recipient created!");
         setForm({
           name: "",
@@ -65,26 +60,25 @@ export default function RecipientForm() {
           openingBalance: "",
         });
       }
-
       router.push("/recipients");
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error saving recipient:", error);
-      alert("Failed to save recipient.");
+      alert(error.response?.data?.error || "Failed to save recipient.");
     }
   };
 
-  if (isLoading) {
+  if (id && isLoading) {
     return <div className="text-center py-8 text-gray-600">Loading form...</div>;
   }
+
+  const isSubmitting = createMutation.isPending || updateMutation.isPending;
 
   return (
     <form
       onSubmit={handleSubmit}
-      // className="max-w-2xl mx-auto bg-white dark:bg-gray-800 p-6 rounded-lg shadow space-y-5"
-      className="max-w-2xl mx-auto bg-white  p-4 rounded-lg shadow space-y-5"
+      className="max-w-2xl mx-auto bg-white p-4 rounded-lg shadow space-y-5"
     >
-      {/* <h2 className="text-xl font-semibold text-gray-800 dark:text-white mb-2"> */}
-      <h2 className="text-xl font-semibold text-gray-800 ">
+      <h2 className="text-xl font-semibold text-gray-800">
         {id ? "Edit Recipient" : "Add New Recipient"}
       </h2>
 
@@ -97,6 +91,7 @@ export default function RecipientForm() {
             onChange={handleChange}
             className="w-full border border-gray-300 p-2 rounded"
             required
+            disabled={isSubmitting}
           />
         </div>
 
@@ -109,6 +104,7 @@ export default function RecipientForm() {
             onChange={handleChange}
             className="w-full border border-gray-300 p-2 rounded"
             required
+            disabled={isSubmitting}
           />
         </div>
 
@@ -121,6 +117,7 @@ export default function RecipientForm() {
             rows={2}
             className="w-full border border-gray-300 p-2 rounded"
             required
+            disabled={isSubmitting}
           />
         </div>
 
@@ -131,6 +128,7 @@ export default function RecipientForm() {
             value={form.mobile}
             onChange={handleChange}
             className="w-full border border-gray-300 p-2 rounded"
+            disabled={isSubmitting}
           />
         </div>
 
@@ -142,15 +140,20 @@ export default function RecipientForm() {
             value={form.email}
             onChange={handleChange}
             className="w-full border border-gray-300 p-2 rounded"
+            disabled={isSubmitting}
           />
         </div>
       </div>
 
       <button
         type="submit"
-        className="bg-blue-700 text-white px-4 py-2 rounded hover:bg-blue-800"
+        disabled={isSubmitting}
+        className="bg-blue-700 text-white px-4 py-2 rounded hover:bg-blue-800 disabled:opacity-50 disabled:cursor-not-allowed"
       >
-        {id ? "Update Recipient" : "Save Recipient"}
+        {isSubmitting 
+          ? (id ? "Updating..." : "Creating...") 
+          : (id ? "Update Recipient" : "Save Recipient")
+        }
       </button>
     </form>
   );
