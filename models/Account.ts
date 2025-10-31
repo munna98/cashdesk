@@ -19,6 +19,10 @@ const AccountSchema = new mongoose.Schema({
   balance: {
     type: Number, 
     default: 0
+  },
+  openingBalance: {
+    type: Number, 
+    default: 0
   }
 }, { timestamps: true });
 

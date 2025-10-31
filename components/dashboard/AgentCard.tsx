@@ -50,12 +50,12 @@ export default function AgentCard({
           </div>
         </div>
 
-        {/* Row 2: Received */}
+        {/* Row 2: Tocken */}
         <div className="flex w-full">
           <div className="flex items-center space-x-2 p-2 rounded-md bg-green-50 text-green-700 flex-1">
             <ArrowTrendingUpIcon className="h-5 w-5 flex-shrink-0" />
             <span className="truncate">
-              Received: ₹{received.toLocaleString()}
+              Tocken: ₹{received.toLocaleString()}
             </span>
           </div>
         </div>
@@ -70,11 +70,11 @@ export default function AgentCard({
           </div>
         </div>
 
-        {/* Row 4: Paid */}
+        {/* Row 4: Deposit */}
         <div className="flex w-full">
           <div className="flex items-center space-x-2 p-2 rounded-md bg-red-50 text-red-700 flex-1">
             <ArrowTrendingDownIcon className="h-5 w-5 flex-shrink-0" />
-            <span className="truncate">Paid: ₹{paid.toLocaleString()}</span>
+            <span className="truncate">Deposit: ₹{paid.toLocaleString()}</span>
           </div>
         </div>
 
@@ -90,7 +90,7 @@ export default function AgentCard({
             className="flex-1 flex items-center justify-center bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-md transition"
           >
             <ArrowDownTrayIcon className="h-5 w-5 mr-2" />
-            Receive Cash
+            Get Token
           </button>
 
           <button
@@ -98,7 +98,7 @@ export default function AgentCard({
             className="flex-1 flex items-center justify-center bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-md transition"
           >
             <ArrowUpTrayIcon className="h-5 w-5 mr-2" />
-            Make Payment
+            Make Deposit
           </button>
         </div>
       </div>

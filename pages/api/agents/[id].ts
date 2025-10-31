@@ -1,5 +1,4 @@
 // /pages/api/agents/[id].ts
-
 import type { NextApiRequest, NextApiResponse } from "next";
 import dbConnect from "@/lib/mongodb";
 import Agent from "@/models/Agent";
@@ -18,33 +17,70 @@ export default async function handler(
       try {
         const agent = await Agent.findById(id);
         if (!agent) return res.status(404).json({ message: "Agent not found" });
-        return res.status(200).json(agent);
+
+        // Fetch linked account for opening balance
+        const account = await Account.findOne({
+          linkedEntityId: id,
+          linkedEntityType: "agent",
+        });
+
+        const agentWithBalance = {
+          ...agent.toObject(),
+          openingBalance: account?.openingBalance || 0,
+          balance: account?.balance || 0,
+        };
+
+        return res.status(200).json(agentWithBalance);
       } catch (error: any) {
         return res.status(400).json({ error: error.message });
       }
 
+
     case "PUT":
       try {
-        const updatedAgent = await Agent.findByIdAndUpdate(id, req.body, {
-          new: true,
-          runValidators: true,
-        });
+        const { openingBalance, name, ...agentData } = req.body;
+
+        // Update agent
+        const updatedAgent = await Agent.findByIdAndUpdate(
+          id,
+          { ...agentData, ...(name ? { name } : {}) },
+          { new: true, runValidators: true }
+        );
 
         if (!updatedAgent) {
           return res.status(404).json({ message: "Agent not found" });
         }
 
-        // Update the corresponding account if agent name is changed
-        if (req.body.name) {
-          await Account.findOneAndUpdate(
-            {
-              linkedEntityId: id,
-              linkedEntityType: "agent",
-            },
-            {
-              name: req.body.name,
+        // Find linked account
+        const account = await Account.findOne({
+          linkedEntityId: id,
+          linkedEntityType: "agent",
+        });
+
+        if (account) {
+          const updateData: Record<string, any> = {};
+
+          // If name changed, sync it
+          if (name) updateData.name = name;
+
+          // If opening balance provided, handle update carefully
+          if (openingBalance !== undefined) {
+            const transactionCount = await Transaction.countDocuments({
+              agentId: id,
+            });
+
+            updateData.openingBalance = Number(openingBalance);
+
+            // If no transactions exist, we can safely reset balance
+            if (transactionCount === 0) {
+              updateData.balance = Number(openingBalance);
             }
-          );
+          }
+
+          // Update account if there's something to change
+          if (Object.keys(updateData).length > 0) {
+            await Account.findByIdAndUpdate(account._id, updateData);
+          }
         }
 
         return res.status(200).json(updatedAgent);

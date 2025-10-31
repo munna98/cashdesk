@@ -168,7 +168,7 @@ export default function AgentList() {
               </div>
             </div>
           </div>
-        </div>
+        </div> 
       ))}
     </div>
   );
