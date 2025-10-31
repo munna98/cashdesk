@@ -6,6 +6,7 @@ import {
   HomeIcon,
   ArrowUpTrayIcon,
   ArrowDownTrayIcon,
+  ArrowsRightLeftIcon,
   UserGroupIcon,
   UserIcon,
   UserCircleIcon,
@@ -18,8 +19,9 @@ import {
 
 const navItems = [
   { label: "Dashboard", href: "/dashboard", icon: HomeIcon },
-  { label: "Receipts", href: "/transactions/receipts/receipts", icon: ArrowDownTrayIcon},
+  { label: "Receipts", href: "/transactions/receipts/receipts", icon: ArrowDownTrayIcon },
   { label: "Payments", href: "/transactions/payments/payments", icon: ArrowUpTrayIcon },
+  { label: "Journal Entry", href: "/transactions/journal", icon: ArrowsRightLeftIcon },
   { label: "Agents", href: "/agents", icon: UserGroupIcon },
   { label: "Recipients", href: "/recipients", icon: UserIcon },
   { label: "Employees", href: "/employees", icon: UserCircleIcon },
@@ -32,7 +34,7 @@ const navItems = [
 
 export default function Sidebar({ isOpen = true, onClose }: { isOpen?: boolean, onClose?: () => void }) {
   const router = useRouter()
-  
+
   // Close sidebar when route changes (mobile)
   useEffect(() => {
     if (onClose) {
@@ -52,7 +54,7 @@ export default function Sidebar({ isOpen = true, onClose }: { isOpen?: boolean, 
         document.body.style.overflow = ''
       }
     }
-    
+
     return () => {
       document.body.style.overflow = ''
     }
@@ -62,25 +64,24 @@ export default function Sidebar({ isOpen = true, onClose }: { isOpen?: boolean, 
     <>
       {/* Overlay for mobile */}
       {isOpen && (
-        <div 
+        <div
           className="md:hidden fixed inset-0 bg-black/50 z-20"
           onClick={onClose}
           aria-hidden="true"
         />
       )}
-      
+
       {/* Sidebar */}
-      <aside 
-        className={`${
-          isOpen ? 'translate-x-0' : '-translate-x-full'
-        } md:translate-x-0 fixed md:static inset-y-0 left-0 z-30 w-64 bg-[#000022] text-white h-full flex flex-col transition-transform duration-300 ease-in-out`}
+      <aside
+        className={`${isOpen ? 'translate-x-0' : '-translate-x-full'
+          } md:translate-x-0 fixed md:static inset-y-0 left-0 z-30 w-64 bg-[#000022] text-white h-full flex flex-col transition-transform duration-300 ease-in-out`}
       >
         <div className="flex items-center justify-between p-5 text-xl font-bold tracking-wide border-b border-white/20">
           <span>Cash Desk</span>
-          
+
           {/* Close button (mobile only) */}
           {onClose && (
-            <button 
+            <button
               className="md:hidden p-1 rounded-full hover:bg-white/10"
               onClick={onClose}
               aria-label="Close sidebar"
@@ -89,11 +90,11 @@ export default function Sidebar({ isOpen = true, onClose }: { isOpen?: boolean, 
             </button>
           )}
         </div>
-        
+
         <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
           {navItems.map(({ label, href, icon: Icon }) => {
             const isActive = router.pathname === href
-            
+
             return (
               <Link
                 key={href}
@@ -110,7 +111,7 @@ export default function Sidebar({ isOpen = true, onClose }: { isOpen?: boolean, 
             )
           })}
         </nav>
-        
+
         <div className="p-4 text-xs text-white/50 border-t border-white/20">
           v1.0 <span className="hidden sm:inline">Desktop</span>
         </div>

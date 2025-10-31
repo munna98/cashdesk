@@ -1,4 +1,4 @@
-// api/transactions/index.ts
+// pages/api/transactions/index.ts - Updated to handle journal entries
 import type { NextApiRequest, NextApiResponse } from "next";
 import dbConnect from "@/lib/mongodb";
 import Transaction from "@/models/Transaction";
@@ -26,20 +26,20 @@ export default async function handler(
       try {
         const { type, date } = req.query;
 
-        // Build the query object dynamically
         const query: any = {};
         if (type) query.type = type;
         if (date) {
           const start = new Date(date as string);
           const end = new Date(date as string);
-          end.setDate(end.getDate() + 1); // include up to next day, exclusive
+          end.setDate(end.getDate() + 1);
           query.date = { $gte: start, $lt: end };
         }
 
         const transactions: ITransaction[] = await Transaction.find(query)
           .populate("fromAccount", "name")
           .populate("toAccount", "name")
-          .populate("effectedAccount", "name"); // Added this line
+          .populate("effectedAccount", "name")
+          .sort({ createdAt: -1 });
 
         return res.status(200).json(transactions);
       } catch (error: any) {
@@ -48,22 +48,54 @@ export default async function handler(
 
     case "POST":
       try {
-        const { fromAccount, toAccount, amount, date, note, type, commissionAmount, effectedAccount } =
-          req.body;
+        const { 
+          fromAccount, 
+          toAccount, 
+          amount, 
+          date, 
+          note, 
+          type, 
+          commissionAmount, 
+          effectedAccount 
+        } = req.body;
 
-        if (!fromAccount || !toAccount || !amount || !date || !type ) {
+        if (!fromAccount || !toAccount || !amount || !date || !type) {
           return res.status(400).json({ message: "Missing required fields" });
         }
 
-        const counterKey = type === "payment" ? "payment" : "receipt";
+        // Validate type
+        if (!["receipt", "payment", "journalentry"].includes(type)) {
+          return res.status(400).json({ message: "Invalid transaction type" });
+        }
+
+        // Determine counter key and prefix based on type
+        let counterKey: string;
+        let prefix: string;
+
+        switch (type) {
+          case "payment":
+            counterKey = "payment";
+            prefix = "PMT";
+            break;
+          case "receipt":
+            counterKey = "receipt";
+            prefix = "RCT";
+            break;
+          case "journalentry":
+            counterKey = "journalentry";
+            prefix = "JNL";
+            break;
+          default:
+            return res.status(400).json({ message: "Invalid transaction type" });
+        }
+
         const seq = await getNextSequence(counterKey);
         const year = new Date().getFullYear();
-        const prefix = type === "payment" ? "PMT" : "RCT";
         const transactionNumber = `${prefix}-${year}-${seq
           .toString()
           .padStart(5, "0")}`;
 
-        // Create the main receipt transaction
+        // Create the main transaction
         const transaction = await Transaction.create({
           transactionNumber,
           fromAccount,
@@ -76,8 +108,8 @@ export default async function handler(
           effectedAccount,
         });
 
-        // If commission exists, create a second payment transaction
-        if (commissionAmount && commissionAmount > 0) {
+        // If it's a receipt with commission, create a commission payment
+        if (type === "receipt" && commissionAmount && commissionAmount > 0) {
           const commissionAccount = await Account.findOne({
             name: "Commission",
           });
