@@ -1,4 +1,4 @@
-// components/transactions/PaymentForm.tsx - Refactored with React Query
+// components/transactions/PaymentForm.tsx - Updated for journal entry
 import { useState, useEffect } from "react";
 import {
   BanknotesIcon,
@@ -51,6 +51,11 @@ export default function PaymentForm({ onPaymentSaved }: PaymentFormProps) {
   useEffect(() => {
     const selected = accounts.find((acc: Account) => acc._id === accountId);
     setSelectedToAccountType(selected?.type || "");
+    
+    // Reset effected account when changing to non-recipient
+    if (selected?.type !== "recipient") {
+      setEffectedAccountId("");
+    }
   }, [accountId, accounts]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -64,7 +69,7 @@ export default function PaymentForm({ onPaymentSaved }: PaymentFormProps) {
     const payment = {
       fromAccount: cashAccountId,
       toAccount: accountId,
-      effectedAccount: selectedToAccountType === "recipient" ? effectedAccountId : "",
+      effectedAccount: selectedToAccountType === "recipient" ? effectedAccountId : undefined,
       amount: Number(amount),
       date,
       note,
@@ -114,6 +119,11 @@ export default function PaymentForm({ onPaymentSaved }: PaymentFormProps) {
           <p className="text-sm">
             Transaction #{savedPayment.transactionNumber} for ₹
             {savedPayment.amount.toFixed(2)} has been recorded.
+            {selectedToAccountType === "recipient" && (
+              <span className="block mt-1">
+                ✓ Agent clearing journal entry created
+              </span>
+            )}
           </p>
         </div>
       )}
@@ -173,6 +183,9 @@ export default function PaymentForm({ onPaymentSaved }: PaymentFormProps) {
                 ))}
               </select>
             </div>
+            <p className="text-xs text-gray-500 mt-1">
+              This will create a journal entry to clear the agent's account
+            </p>
           </div>
         )}
 

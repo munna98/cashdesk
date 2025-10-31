@@ -48,12 +48,12 @@ export default function LedgerPage() {
   const fetchLedger = async () => {
     if (!id) return;
     setLoading(true);
-    
+
     try {
       const params = new URLSearchParams();
       if (startDate) params.append("startDate", startDate);
       if (endDate) params.append("endDate", endDate);
-      
+
       const res = await axios.get(`/api/accounts/${id}/ledger?${params.toString()}`);
       setLedgerData(res.data);
     } catch (err) {
@@ -70,6 +70,28 @@ export default function LedgerPage() {
   const handleFilter = (e: React.FormEvent) => {
     e.preventDefault();
     fetchLedger();
+  };
+
+  // ⭐ NEW UTILITY FUNCTION: Correctly determines the balance suffix and color
+  const getBalanceDisplay = (balance: number, accountType: string) => {
+    // These account types have a normal balance as Credit (negative number from API)
+    const creditAccountTypes = ["liability", "income", "agent", "recipient"];
+    const isCreditAccount = creditAccountTypes.includes(accountType);
+
+    // Determine the suffix (API provides negative for 'Cr', positive for 'Dr')
+    const suffix = balance >= 0 ? "Dr" : "Cr";
+
+    // Determine if the balance is 'unusual' (i.e., not its normal sign)
+    // - Asset/Expense: Dr balance (>= 0) is normal. Cr balance (< 0) is unusual (red).
+    // - Liability/Income: Cr balance (< 0) is normal. Dr balance (>= 0) is unusual (red).
+    const isUnusualBalance = (isCreditAccount && balance >= 0) || (!isCreditAccount && balance < 0);
+
+    const colorClass = isUnusualBalance && balance !== 0 ? "text-red-600" : "text-gray-900";
+
+    return {
+      display: `₹${Math.abs(balance).toLocaleString()} ${suffix}`,
+      colorClass,
+    };
   };
 
   return (
@@ -94,11 +116,19 @@ export default function LedgerPage() {
             </div>
             <div>
               <p className="text-sm text-gray-600">Opening Balance</p>
-              <p className="font-medium">₹{ledgerData.openingBalance.toLocaleString()}</p>
+              {/* Apply getBalanceDisplay for Opening Balance */}
+              <p className="font-medium">
+                {getBalanceDisplay(ledgerData.openingBalance, ledgerData.accountType).display}
+              </p>
             </div>
             <div>
               <p className="text-sm text-gray-600">Closing Balance</p>
-              <p className="font-medium">₹{ledgerData.closingBalance.toLocaleString()}</p>
+              {/* Apply getBalanceDisplay for Closing Balance with color */}
+              <p
+                className={`font-medium ${getBalanceDisplay(ledgerData.closingBalance, ledgerData.accountType).colorClass}`}
+              >
+                {getBalanceDisplay(ledgerData.closingBalance, ledgerData.accountType).display}
+              </p>
             </div>
           </div>
         </div>
@@ -152,28 +182,36 @@ export default function LedgerPage() {
               </tr>
             </thead>
             <tbody>
-              {ledgerData.entries.map((txn) => (
-                <tr key={txn._id} className="border-t hover:bg-gray-50">
-                  <td className="px-4 py-2">
-                    {dayjs(txn.date).format("DD/MM/YYYY")}
-                  </td>
-                  <td className="px-4 py-2">{txn.transactionNumber}</td>
-                  <td className="px-4 py-2">
-                    <div>{txn.counterparty}</div>
-                    <div className="text-xs text-gray-500">{txn.note || "-"}</div>
-                  </td>
-                  <td className="px-4 py-2 capitalize">{txn.type}</td>
-                  <td className="px-4 py-2 text-right">
-                    {txn.debit > 0 ? `₹${txn.debit.toLocaleString()}` : "-"}
-                  </td>
-                  <td className="px-4 py-2 text-right">
-                    {txn.credit > 0 ? `₹${txn.credit.toLocaleString()}` : "-"}
-                  </td>
-                  <td className={`px-4 py-2 text-right font-medium ${txn.balance < 0 ? "text-red-600" : "text-gray-900"}`}>
-                    ₹{txn.balance.toLocaleString()}
-                  </td>
-                </tr>
-              ))}
+              {ledgerData.entries.map((txn) => {
+                // Apply getBalanceDisplay for each transaction row
+                const balanceDisplay = getBalanceDisplay(txn.balance, ledgerData.accountType);
+
+                return (
+                  <tr key={txn._id} className="border-t hover:bg-gray-50">
+                    <td className="px-4 py-2">
+                      {dayjs(txn.date).format("DD/MM/YYYY")}
+                    </td>
+                    <td className="px-4 py-2">{txn.transactionNumber}</td>
+                    <td className="px-4 py-2">
+                      <div>{txn.counterparty}</div>
+                      <div className="text-xs text-gray-500">{txn.note || "-"}</div>
+                    </td>
+                    <td className="px-4 py-2 capitalize">{txn.type}</td>
+                    <td className="px-4 py-2 text-right">
+                      {txn.debit > 0 ? `₹${txn.debit.toLocaleString()}` : "-"}
+                    </td>
+                    <td className="px-4 py-2 text-right">
+                      {txn.credit > 0 ? `₹${txn.credit.toLocaleString()}` : "-"}
+                    </td>
+                    <td
+                      className={`px-4 py-2 text-right font-medium ${balanceDisplay.colorClass}`}
+                    >
+                      {balanceDisplay.display}
+                    </td>
+                  </tr>
+                );
+              }
+              )}
             </tbody>
             <tfoot className="bg-gray-50 font-medium">
               <tr>
@@ -181,13 +219,23 @@ export default function LedgerPage() {
                   Total:
                 </td>
                 <td className="px-4 py-2 text-right">
-                  ₹{ledgerData.entries.reduce((sum, txn) => sum + txn.debit, 0).toLocaleString()}
+                  ₹
+                  {ledgerData.entries
+                    .reduce((sum, txn) => sum + txn.debit, 0)
+                    .toLocaleString()}
                 </td>
                 <td className="px-4 py-2 text-right">
-                  ₹{ledgerData.entries.reduce((sum, txn) => sum + txn.credit, 0).toLocaleString()}
+                  ₹
+                  {ledgerData.entries
+                    .reduce((sum, txn) => sum + txn.credit, 0)
+                    .toLocaleString()}
                 </td>
-                <td className={`px-4 py-2 text-right ${ledgerData.closingBalance < 0 ? "text-red-600" : "text-gray-900"}`}>
-                  ₹{ledgerData.closingBalance.toLocaleString()}
+                {/* Apply getBalanceDisplay for Closing Balance in the footer */}
+                <td
+                  className={`px-4 py-2 text-right ${getBalanceDisplay(ledgerData.closingBalance, ledgerData.accountType).colorClass
+                    }`}
+                >
+                  {getBalanceDisplay(ledgerData.closingBalance, ledgerData.accountType).display}
                 </td>
               </tr>
             </tfoot>

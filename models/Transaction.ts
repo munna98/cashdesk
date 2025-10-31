@@ -1,3 +1,4 @@
+// models/Transaction.ts - Updated model without effectedAccount
 import mongoose, { Schema, model, models } from "mongoose";
 
 const transactionSchema = new Schema(
@@ -16,10 +17,6 @@ const transactionSchema = new Schema(
       type: Schema.Types.ObjectId,
       ref: "Account",
       required: true,
-    },
-    effectedAccount: {
-      type: Schema.Types.ObjectId,
-      ref: "Account",
     },
     amount: {
       type: Number,
@@ -41,6 +38,12 @@ const transactionSchema = new Schema(
       type: String,
       enum: ["receipt", "payment", "journalentry"],
       required: true,
+    },
+    // Link related transactions (receipt <-> commission journal)
+    relatedTransactionId: {
+      type: Schema.Types.ObjectId,
+      ref: "Transaction",
+      default: null,
     },
   },
   {
