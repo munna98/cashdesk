@@ -163,7 +163,7 @@ export default function AgentList() {
                   ₹{agent.balance?.toLocaleString()}
                 </div>
                 <div className="text-xs text-gray-500">
-                  Opening: ₹{agent.openingBalance.toLocaleString()}
+                  Opening: ₹{agent.openingBalance}
                 </div>
               </div>
             </div>
