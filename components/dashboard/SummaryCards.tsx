@@ -37,7 +37,7 @@ import {
         color: "bg-green-100 text-green-800",
       },
       {
-        title: "Commission",
+        title: "Total Commission",
         value: totalCommission,
         icon: ArrowTrendingUpIcon,
         color: "bg-yellow-100 text-yellow-800",

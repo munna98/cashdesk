@@ -22,8 +22,8 @@ export default function EditJournalEntryPage() {
   const { id } = router.query;
 
   const [allAccounts, setAllAccounts] = useState<Account[]>([]);
-  const [fromAccount, setFromAccount] = useState("");
-  const [toAccount, setToAccount] = useState("");
+  const [debitAccount, setDebitAccount] = useState(""); // Updated: from fromAccount to debitAccount
+  const [creditAccount, setCreditAccount] = useState(""); // Updated: from toAccount to creditAccount
   const [amount, setAmount] = useState("");
   const [date, setDate] = useState("");
   const [note, setNote] = useState("");
@@ -40,8 +40,8 @@ export default function EditJournalEntryPage() {
         ]);
 
         const txn = txnRes.data;
-        setFromAccount(txn.fromAccount._id);
-        setToAccount(txn.toAccount._id);
+        setDebitAccount(txn.debitAccount._id); // Updated: from fromAccount to debitAccount
+        setCreditAccount(txn.creditAccount._id); // Updated: from toAccount to creditAccount
         setAmount(txn.amount.toString());
         setDate(txn.date.split("T")[0]);
         setNote(txn.note || "");
@@ -65,15 +65,15 @@ export default function EditJournalEntryPage() {
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (fromAccount === toAccount) {
-      alert("From and To accounts cannot be the same.");
+    if (debitAccount === creditAccount) { // Updated: from fromAccount/toAccount to debitAccount/creditAccount
+      alert("Debit and Credit accounts cannot be the same.");
       return;
     }
 
     try {
       await axios.put(`/api/transactions/${id}`, {
-        fromAccount,
-        toAccount,
+        debitAccount,    // Updated: from fromAccount to debitAccount
+        creditAccount,   // Updated: from toAccount to creditAccount
         amount: Number(amount),
         date,
         note,
@@ -98,16 +98,16 @@ export default function EditJournalEntryPage() {
             onSubmit={handleUpdate}
             className="bg-white p-6 rounded-lg shadow space-y-6 border border-gray-200"
           >
-            {/* From Account */}
+            {/* Debit Account */}
             <div className="space-y-1">
               <label className="block text-sm font-medium text-gray-700">
-                From Account (Debit)
+                Debit Account
               </label>
               <div className="relative">
                 <UserCircleIcon className="h-5 w-5 absolute top-2.5 left-3 text-gray-400" />
                 <select
-                  value={fromAccount}
-                  onChange={(e) => setFromAccount(e.target.value)}
+                  value={debitAccount} // Updated: from fromAccount to debitAccount
+                  onChange={(e) => setDebitAccount(e.target.value)} // Updated: from setFromAccount to setDebitAccount
                   required
                   className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
                 >
@@ -126,16 +126,16 @@ export default function EditJournalEntryPage() {
               <ArrowRightIcon className="h-6 w-6 text-gray-400" />
             </div>
 
-            {/* To Account */}
+            {/* Credit Account */}
             <div className="space-y-1">
               <label className="block text-sm font-medium text-gray-700">
-                To Account (Credit)
+                Credit Account
               </label>
               <div className="relative">
                 <UserCircleIcon className="h-5 w-5 absolute top-2.5 left-3 text-gray-400" />
                 <select
-                  value={toAccount}
-                  onChange={(e) => setToAccount(e.target.value)}
+                  value={creditAccount} // Updated: from toAccount to creditAccount
+                  onChange={(e) => setCreditAccount(e.target.value)} // Updated: from setToAccount to setCreditAccount
                   required
                   className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
                 >

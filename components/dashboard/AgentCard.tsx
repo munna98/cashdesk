@@ -42,46 +42,67 @@ export default function AgentCard({
       <div className="flex flex-col gap-2 text-sm">
         {/* Row 1: Opening */}
         <div className="flex w-full">
-          <div className="flex items-center space-x-2 p-2 rounded-md bg-blue-50 text-blue-700 flex-1">
-            <BanknotesIcon className="h-5 w-5 flex-shrink-0" />
+          <div className="flex items-center justify-between space-x-2 p-2 rounded-md bg-blue-50 text-blue-700 flex-1">
+            <div className="flex items-center space-x-2">
+              <BanknotesIcon className="h-5 w-5 flex-shrink-0" />
+              <span>Opening:</span>
+            </div>
             <span className="truncate">
-              Opening: ₹{opening.toLocaleString()}
+              ₹{opening.toLocaleString()}
             </span>
           </div>
         </div>
 
         {/* Row 2: Tocken */}
         <div className="flex w-full">
-          <div className="flex items-center space-x-2 p-2 rounded-md bg-green-50 text-green-700 flex-1">
-            <ArrowTrendingUpIcon className="h-5 w-5 flex-shrink-0" />
+          <div className="flex items-center justify-between space-x-2 p-2 rounded-md bg-green-50 text-green-700 flex-1">
+            <div className="flex items-center space-x-2">
+              <ArrowTrendingUpIcon className="h-5 w-5 flex-shrink-0" />
+              <span>Tocken:</span>
+            </div>
             <span className="truncate">
-              Tocken: ₹{received.toLocaleString()}
+              ₹{received.toLocaleString()}
             </span>
           </div>
         </div>
 
         {/* Row 3: Commission */}
         <div className="flex w-full">
-          <div className="flex items-center space-x-2 p-2 rounded-md bg-yellow-50 text-yellow-700 flex-1">
-            <CalculatorIcon className="h-5 w-5 flex-shrink-0" />
+          <div className="flex items-center justify-between space-x-2 p-2 rounded-md bg-yellow-50 text-yellow-700 flex-1">
+            <div className="flex items-center space-x-2">
+              <CalculatorIcon className="h-5 w-5 flex-shrink-0" />
+              <span>Commission:</span>
+            </div>
             <span className="truncate">
-              Commission: ₹{commission.toLocaleString()}
+              ₹{commission.toLocaleString()}
             </span>
           </div>
         </div>
 
         {/* Row 4: Deposit */}
         <div className="flex w-full">
-          <div className="flex items-center space-x-2 p-2 rounded-md bg-red-50 text-red-700 flex-1">
-            <ArrowTrendingDownIcon className="h-5 w-5 flex-shrink-0" />
-            <span className="truncate">Deposit: ₹{paid.toLocaleString()}</span>
+          <div className="flex items-center justify-between space-x-2 p-2 rounded-md bg-red-50 text-red-700 flex-1">
+            <div className="flex items-center space-x-2">
+              <ArrowTrendingDownIcon className="h-5 w-5 flex-shrink-0" />
+              <span>Deposit:</span>
+            </div>
+            <span className="truncate">
+              ₹{paid.toLocaleString()}
+            </span>
           </div>
         </div>
 
         {/* Final Row: Closing Balance */}
-        <div className="flex items-center space-x-2 p-2 rounded-md bg-gray-100 font-medium text-gray-800 w-full">
-          <CurrencyRupeeIcon className="h-5 w-5 flex-shrink-0" />
-          <span>Closing: ₹{closing.toLocaleString()}</span>
+        <div className="flex w-full">
+          <div className="flex items-center justify-between space-x-2 p-2 rounded-md bg-gray-100 font-medium text-gray-800 flex-1">
+            <div className="flex items-center space-x-2">
+              <CurrencyRupeeIcon className="h-5 w-5 flex-shrink-0" />
+              <span>Closing:</span>
+            </div>
+            <span className="truncate">
+              ₹{closing.toLocaleString()}
+            </span>
+          </div>
         </div>
 
         <div className="mt-3 flex gap-2">

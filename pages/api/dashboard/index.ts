@@ -16,11 +16,11 @@ interface AgentDashboardData {
 }
 
 interface DashboardSummary {
-  cashOpeningBalance: number;
+  totalOpeningBalance: number;  // Changed from cashOpeningBalance
   totalReceived: number;
   totalCommission: number;
   totalPaid: number;
-  cashClosingBalance: number;
+  totalClosingBalance: number;  // Changed from cashClosingBalance
 }
 
 export default async function handler(
@@ -49,13 +49,6 @@ export default async function handler(
     
     // Get all accounts
     const accounts = await Account.find({});
-    
-    // Find cash account
-    const cashAccount = accounts.find((acc: any) => acc.type === "cash");
-    
-    if (!cashAccount) {
-      return res.status(400).json({ error: "Cash account not found" });
-    }
 
     // Get all transactions (for opening balance calculation)
     const allTransactions = await Transaction.find({
@@ -69,23 +62,10 @@ export default async function handler(
     .populate('debitAccount', 'name type')
     .populate('creditAccount', 'name type');
 
-    // Calculate cash opening balance
-    let cashOpeningBalance = cashAccount.openingBalance || 0;
-    
-    allTransactions.forEach((txn: any) => {
-      const isDebited = txn.debitAccount?.toString() === cashAccount._id.toString();
-      const isCredited = txn.creditAccount?.toString() === cashAccount._id.toString();
-
-      if (isDebited) {
-        cashOpeningBalance += txn.amount;
-      } else if (isCredited) {
-        cashOpeningBalance -= txn.amount;
-      }
-    });
-
     // Initialize agent data array
     const agentDashboardData: AgentDashboardData[] = [];
     
+    let totalOpeningBalance = 0;
     let totalReceived = 0;
     let totalCommission = 0;
     let totalPaid = 0;
@@ -109,9 +89,9 @@ export default async function handler(
         const isCredited = txn.creditAccount?.toString() === agentAccount._id.toString();
 
         if (isDebited) {
-          opening += txn.amount;
+          opening -= txn.amount;  // Debit reduces agent balance (they owe less)
         } else if (isCredited) {
-          opening -= txn.amount;
+          opening += txn.amount;  // Credit increases agent balance (they owe more)
         }
       });
 
@@ -146,7 +126,7 @@ export default async function handler(
       agentDashboardData.push({
         _id: agent._id.toString(),
         name: agent.name,
-        opening,
+        opening,  // Now naturally positive
         received,
         commission,
         paid,
@@ -154,20 +134,21 @@ export default async function handler(
       });
 
       // Add to totals
+      totalOpeningBalance += opening;
       totalReceived += received;
       totalCommission += commission;
       totalPaid += paid;
     }
 
-    // Calculate cash closing balance
-    const cashClosingBalance = cashOpeningBalance + totalReceived - totalPaid;
+    // Calculate total closing balance
+    const totalClosingBalance = totalOpeningBalance + totalReceived - totalCommission - totalPaid;
 
     const summary: DashboardSummary = {
-      cashOpeningBalance,
+      totalOpeningBalance,
       totalReceived,
       totalCommission,
       totalPaid,
-      cashClosingBalance
+      totalClosingBalance
     };
 
     return res.status(200).json({

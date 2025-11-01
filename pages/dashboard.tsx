@@ -1,4 +1,4 @@
-// pages/dashboard.tsx - Simplified with backend data
+// pages/dashboard.tsx - Updated with total agent opening balance
 import Layout from "@/components/layout/Layout";
 import SummaryCards from "@/components/dashboard/SummaryCards";
 import AgentCard from "@/components/dashboard/AgentCard";
@@ -18,11 +18,11 @@ interface AgentData {
 }
 
 interface DashboardSummary {
-  cashOpeningBalance: number;
+  totalOpeningBalance: number;  // Changed from cashOpeningBalance
   totalReceived: number;
   totalCommission: number;
   totalPaid: number;
-  cashClosingBalance: number;
+  totalClosingBalance: number;  // Changed from cashClosingBalance
 }
 
 interface SavedReceiptInfo {
@@ -39,11 +39,11 @@ interface SavedPaymentInfo {
 export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [summary, setSummary] = useState<DashboardSummary>({
-    cashOpeningBalance: 0,
+    totalOpeningBalance: 0,
     totalReceived: 0,
     totalCommission: 0,
     totalPaid: 0,
-    cashClosingBalance: 0
+    totalClosingBalance: 0
   });
   const [agents, setAgents] = useState<AgentData[]>([]);
   const [receiptSuccess, setReceiptSuccess] = useState<SavedReceiptInfo | null>(null);
@@ -128,7 +128,7 @@ export default function Dashboard() {
     <Layout>
       <div className="space-y-6">
         <SummaryCards
-          openingBalance={summary.cashOpeningBalance}
+          openingBalance={summary.totalOpeningBalance}
           totalReceived={summary.totalReceived}
           totalCommission={summary.totalCommission}
           totalPaid={summary.totalPaid}

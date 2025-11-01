@@ -8,6 +8,7 @@ import {
 } from "@heroicons/react/24/outline";
 import Link from "next/link";
 import { useAgents, useDeleteAgent } from "@/hooks/queries/useAgents";
+import { getBalanceDisplay } from "@/utils/balanceDisplay";
 
 type Agent = {
   _id: string;
@@ -37,7 +38,6 @@ export default function AgentList() {
 
     try {
       await deleteAgentMutation.mutateAsync(id);
-      // No need to manually update state - React Query handles cache invalidation
     } catch (error: any) {
       console.error("Failed to delete agent:", error);
       alert(error.response?.data?.error || "Failed to delete agent.");
@@ -157,13 +157,13 @@ export default function AgentList() {
                 <span className="text-xs text-gray-500">Balance</span>
                 <div
                   className={`mt-1 font-medium ${
-                    agent.balance < 0 ? "text-red-600" : "text-gray-900"
+                    getBalanceDisplay(agent.balance || 0, 'agent').colorClass
                   }`}
                 >
-                  ₹{agent.balance?.toLocaleString()}
+                  {getBalanceDisplay(agent.balance || 0, 'agent').display}
                 </div>
                 <div className="text-xs text-gray-500">
-                  Opening: ₹{agent.openingBalance}
+                  Opening: {getBalanceDisplay(agent.openingBalance || 0, 'agent').display}
                 </div>
               </div>
             </div>

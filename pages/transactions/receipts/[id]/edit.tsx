@@ -20,12 +20,12 @@ export default function EditReceiptPage() {
   const { id } = router.query;
 
   const [agentAccounts, setAgentAccounts] = useState<AgentAccount[]>([]);
-  const [fromAccount, setFromAccount] = useState("");
+  const [creditAccount, setCreditAccount] = useState(""); // Updated: from fromAccount to creditAccount
   const [amount, setAmount] = useState("");
   const [date, setDate] = useState("");
   const [note, setNote] = useState("");
   const [loading, setLoading] = useState(true);
-  const [cashAccountId, setCashAccountId] = useState(""); // Needed for update
+  const [cashAccountId, setCashAccountId] = useState(""); // This will be debitAccount for receipts
 
   useEffect(() => {
     if (!id) return;
@@ -39,7 +39,8 @@ export default function EditReceiptPage() {
         ]);
 
         const txn = txnRes.data;
-        setFromAccount(txn.fromAccount._id);
+        // Updated: For receipts, creditAccount is the Agent account
+        setCreditAccount(txn.creditAccount._id); // Updated: from fromAccount to creditAccount
         setAmount(txn.amount.toString());
         setDate(txn.date.split("T")[0]);
         setNote(txn.note || "");
@@ -66,8 +67,8 @@ export default function EditReceiptPage() {
 
     try {
       await axios.put(`/api/transactions/${id}`, {
-        fromAccount,
-        toAccount: cashAccountId,
+        debitAccount: cashAccountId,    // Updated: Cash account (Dr)
+        creditAccount: creditAccount,   // Updated: Agent account (Cr)
         amount: Number(amount),
         date,
         note,
@@ -98,8 +99,8 @@ export default function EditReceiptPage() {
               <div className="relative">
                 <UserCircleIcon className="h-5 w-5 absolute top-2.5 left-3 text-gray-400" />
                 <select
-                  value={fromAccount}
-                  onChange={(e) => setFromAccount(e.target.value)}
+                  value={creditAccount} // Updated: from fromAccount to creditAccount
+                  onChange={(e) => setCreditAccount(e.target.value)} // Updated: from setFromAccount to setCreditAccount
                   required
                   className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
                 >

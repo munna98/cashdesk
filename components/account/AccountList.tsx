@@ -177,17 +177,6 @@ export default function AccountList() {
                 </span>
               </div>
 
-              <div className="text-sm text-gray-600">
-                Balance:{" "}
-                <span
-                  className={`font-medium ${
-                    account.balance < 0 ? "text-red-600" : "text-gray-900"
-                  }`}
-                >
-                  ₹{account.balance.toLocaleString()}
-                </span>
-              </div>
-
               <button
                 onClick={() => handleShowLedger(account._id)}
                 className="text-sm text-blue-600 underline hover:text-blue-800"
