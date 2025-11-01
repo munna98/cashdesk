@@ -124,7 +124,6 @@
 //     return res.status(500).json({ error: error.message });
 //   }
 // }
-
 // pages/api/transactions/[id].ts - Updated delete with cascade
 import { NextApiRequest, NextApiResponse } from "next";
 import dbConnect from "@/lib/mongodb";
@@ -140,8 +139,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   try {
     const transaction = await Transaction.findById(id)
-      .populate("fromAccount", "name")
-      .populate("toAccount", "name");
+      .populate("debitAccount", "name")  // Updated: from fromAccount to debitAccount
+      .populate("creditAccount", "name"); // Updated: from toAccount to creditAccount
 
     if (!transaction) {
       return res.status(404).json({ message: "Transaction not found" });
@@ -152,15 +151,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(200).json(transaction);
 
       case "PUT": {
-        const { fromAccount, toAccount, amount, date, note, commissionAmount } = req.body;
+        const { debitAccount, creditAccount, amount, date, note, commissionAmount } = req.body;
 
         if (!["receipt", "payment", "journalentry"].includes(transaction.type)) {
           return res.status(400).json({ message: "Invalid transaction type" });
         }
 
         // Update the transaction
-        transaction.fromAccount = fromAccount;
-        transaction.toAccount = toAccount;
+        transaction.debitAccount = debitAccount;    // Updated: from fromAccount to debitAccount
+        transaction.creditAccount = creditAccount;  // Updated: from toAccount to creditAccount
         transaction.amount = amount;
         transaction.date = date;
         transaction.note = note;

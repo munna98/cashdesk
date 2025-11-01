@@ -1,11 +1,29 @@
-// pages/dashboard.tsx - Fixed with correct balance calculations
+// pages/dashboard.tsx - Simplified with backend data
 import Layout from "@/components/layout/Layout";
 import SummaryCards from "@/components/dashboard/SummaryCards";
 import AgentCard from "@/components/dashboard/AgentCard";
 import ReceiveCashModal from "@/components/dashboard/ReceiveCashModal";
 import MakePaymentModal from "@/components/dashboard/MakePaymentModal";
-import { useState } from "react";
-import { useAgents, useAccounts, useAllTransactions, useTodayTransactions } from "@/hooks/queries/useAgents";
+import { useState, useEffect } from "react";
+import axios from "axios";
+
+interface AgentData {
+  _id: string;
+  name: string;
+  opening: number;
+  received: number;
+  commission: number;
+  paid: number;
+  closing: number;
+}
+
+interface DashboardSummary {
+  cashOpeningBalance: number;
+  totalReceived: number;
+  totalCommission: number;
+  totalPaid: number;
+  cashClosingBalance: number;
+}
 
 interface SavedReceiptInfo {
   transactionNumber: string;
@@ -19,6 +37,15 @@ interface SavedPaymentInfo {
 }
 
 export default function Dashboard() {
+  const [loading, setLoading] = useState(true);
+  const [summary, setSummary] = useState<DashboardSummary>({
+    cashOpeningBalance: 0,
+    totalReceived: 0,
+    totalCommission: 0,
+    totalPaid: 0,
+    cashClosingBalance: 0
+  });
+  const [agents, setAgents] = useState<AgentData[]>([]);
   const [receiptSuccess, setReceiptSuccess] = useState<SavedReceiptInfo | null>(null);
   const [paymentSuccess, setPaymentSuccess] = useState<SavedPaymentInfo | null>(null);
   const [isReceiveModalOpen, setIsReceiveModalOpen] = useState(false);
@@ -26,99 +53,24 @@ export default function Dashboard() {
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
   const [selectedAgentName, setSelectedAgentName] = useState<string | null>(null);
 
-  const today = new Date().toISOString().split("T")[0];
-  const startOfDay = new Date(today);
-  startOfDay.setHours(0, 0, 0, 0);
-
-  // React Query hooks
-  const { data: agents = [], isLoading: agentsLoading } = useAgents();
-  const { data: accounts = [], isLoading: accountsLoading } = useAccounts();
-  
-  // Get ALL transactions (including journal entries) for opening balance calculation
-  const { data: allTransactions = [] } = useAllTransactions();
-  
-  // Get today's transactions (all types including journal entries)
-  const { data: todayTransactions = [] } = useTodayTransactions();
-
-  // Filter today's transactions by type
-  const todayReceipts = todayTransactions.filter((t: any) => t.type === "receipt");
-  const todayPayments = todayTransactions.filter(
-    (t: any) => t.type === "payment" && t.debitAccount?.type === "recipient"
-  );
-  const todayCommissions = todayTransactions.filter(
-    (t: any) => 
-      t.type === "journalentry" && 
-      t.creditAccount?.type === "income" &&
-      t.creditAccount?.name === "Commission"
-  );
-
-  const getAgentAccount = (agentId: string) => {
-    return accounts.find(
-      (acc: any) => acc.type === "agent" && acc.linkedEntityId === agentId
-    );
+  const fetchDashboardData = async () => {
+    try {
+      setLoading(true);
+      const today = new Date().toISOString().split("T")[0];
+      const { data } = await axios.get(`/api/dashboard?date=${today}`);
+      
+      setSummary(data.summary);
+      setAgents(data.agents);
+    } catch (error) {
+      console.error("Error fetching dashboard data:", error);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  // Calculate opening balance (balance before today)
-  const calculateOpeningBalance = (agentAccountId: string, account: any) => {
-    if (!agentAccountId) return 0;
-
-    // Get transactions BEFORE today
-    const priorTransactions = allTransactions.filter((t: any) => {
-      const txnDate = new Date(t.date);
-      return txnDate < startOfDay;
-    });
-
-    // Start with the account's opening balance (negative for agent accounts)
-    let balance = account?.openingBalance || 0;
-
-    // Process all prior transactions
-    priorTransactions.forEach((txn: any) => {
-      const isDebited = txn.debitAccount?._id === agentAccountId;
-      const isCredited = txn.creditAccount?._id === agentAccountId;
-
-      if (isDebited) {
-        // Agent is debited (reduces their credit balance, i.e., they owe us less)
-        balance += txn.amount;
-      } else if (isCredited) {
-        // Agent is credited (increases their credit balance, i.e., they owe us more)
-        balance -= txn.amount;
-      }
-    });
-
-    return balance;
-  };
-
-  const getAgentData = (agentId: string) => {
-    const account = getAgentAccount(agentId);
-    const agentAccountId = account?._id;
-
-    // Calculate opening balance (before today's transactions)
-    const opening = calculateOpeningBalance(agentAccountId, account);
-
-    // Today's receipts from this agent: Dr Cash | Cr Agent
-    const agentReceipts = todayReceipts.filter(
-      (r: any) => r.creditAccount?._id === agentAccountId
-    );
-
-    // Today's commission journal entries for this agent: Dr Agent | Cr Commission
-    const agentCommissions = todayCommissions.filter(
-      (c: any) => c.debitAccount?._id === agentAccountId
-    );
-
-    // Today's payments (clearing journals): Dr Agent | Cr Recipient
-    const agentPayments = todayTransactions.filter(
-      (p: any) => 
-        p.type === "journalentry" &&
-        p.debitAccount?._id === agentAccountId &&
-        p.creditAccount?.type === "recipient"
-    );
-
-    const received = agentReceipts.reduce((sum: number, r: any) => sum + r.amount, 0);
-    const commission = agentCommissions.reduce((sum: number, c: any) => sum + c.amount, 0);
-    const paid = agentPayments.reduce((sum: number, p: any) => sum + p.amount, 0);
-
-    return { opening, received, commission, paid };
-  };
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
 
   const handleReceiveCashClick = (agentId: string, agentName: string) => {
     setSelectedAgentId(agentId);
@@ -151,25 +103,18 @@ export default function Dashboard() {
   const handleCashReceived = async (receiptInfo: SavedReceiptInfo) => {
     setReceiptSuccess(receiptInfo);
     setIsReceiveModalOpen(false);
+    // Refresh dashboard data
+    await fetchDashboardData();
   };
 
   const handleCashPayed = async (paymentInfo: SavedPaymentInfo) => {
     setPaymentSuccess(paymentInfo);
     setIsPaymentModalOpen(false);
+    // Refresh dashboard data
+    await fetchDashboardData();
   };
 
-  // Calculate summary totals
-  const totalReceived = todayReceipts.reduce((sum: number, r: any) => sum + r.amount, 0);
-  const totalCommission = todayCommissions.reduce((sum: number, c: any) => sum + c.amount, 0);
-  const totalPaid = todayPayments.reduce((sum: number, p: any) => sum + p.amount, 0);
-
-  // Calculate opening balance for cash account (before today)
-  const cashAccount = accounts.find((acc: any) => acc.type === "cash");
-  const cashOpeningBalance = cashAccount 
-    ? calculateOpeningBalance(cashAccount._id, cashAccount)
-    : 0;
-
-  if (agentsLoading || accountsLoading) {
+  if (loading) {
     return (
       <Layout>
         <div className="text-center py-12">
@@ -183,10 +128,10 @@ export default function Dashboard() {
     <Layout>
       <div className="space-y-6">
         <SummaryCards
-          openingBalance={cashOpeningBalance}
-          totalReceived={totalReceived}
-          totalCommission={totalCommission}
-          totalPaid={totalPaid}
+          openingBalance={summary.cashOpeningBalance}
+          totalReceived={summary.totalReceived}
+          totalCommission={summary.totalCommission}
+          totalPaid={summary.totalPaid}
         />
 
         {receiptSuccess && (
@@ -216,23 +161,19 @@ export default function Dashboard() {
         )}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {agents.map((agent: any) => {
-            const { opening, received, commission, paid } = getAgentData(agent._id);
-
-            return (
-              <AgentCard
-                key={agent._id}
-                id={agent._id}
-                name={agent.name}
-                opening={opening}
-                received={received}
-                paid={paid}
-                commission={commission}
-                onReceiveCash={handleReceiveCashClick}
-                onMakePayment={handleMakePaymentClick}
-              />
-            );
-          })}
+          {agents.map((agent) => (
+            <AgentCard
+              key={agent._id}
+              id={agent._id}
+              name={agent.name}
+              opening={agent.opening}
+              received={agent.received}
+              paid={agent.paid}
+              commission={agent.commission}
+              onReceiveCash={handleReceiveCashClick}
+              onMakePayment={handleMakePaymentClick}
+            />
+          ))}
         </div>
       </div>
 

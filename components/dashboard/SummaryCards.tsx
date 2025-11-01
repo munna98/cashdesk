@@ -31,7 +31,7 @@ import {
         color: "bg-purple-100 text-purple-800",
       },
       {
-        title: "Total Received",
+        title: "Total Tocken",
         value: totalReceived,
         icon: BanknotesIcon,
         color: "bg-green-100 text-green-800",
@@ -43,7 +43,7 @@ import {
         color: "bg-yellow-100 text-yellow-800",
       },
       {
-        title: "Total Paid",
+        title: "Total Deposited",
         value: totalPaid,
         icon: CurrencyRupeeIcon,
         color: "bg-red-100 text-red-800",
