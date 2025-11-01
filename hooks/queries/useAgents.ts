@@ -157,6 +157,8 @@ export const useDeleteAccount = () => {
 };
 
 // ============= TRANSACTIONS =============
+
+// Get all transactions or filter by type and/or date
 export const useTransactions = (type?: string, date?: string) => {
   return useQuery({
     queryKey: QUERY_KEYS.transactions(type, date),
@@ -168,6 +170,31 @@ export const useTransactions = (type?: string, date?: string) => {
       const { data } = await axios.get(`/api/transactions?${params.toString()}`);
       return data;
     },
+  });
+};
+
+// Get ALL transactions including journal entries (for opening balance calculation)
+export const useAllTransactions = () => {
+  return useQuery({
+    queryKey: ['transactions', 'all'],
+    queryFn: async () => {
+      const { data } = await axios.get('/api/transactions');
+      return data;
+    },
+    staleTime: 1000 * 60 * 5, // Cache for 5 minutes
+  });
+};
+
+// Get today's transactions (all types)
+export const useTodayTransactions = () => {
+  const today = new Date().toISOString().split("T")[0];
+  return useQuery({
+    queryKey: ['transactions', 'today', today],
+    queryFn: async () => {
+      const { data } = await axios.get(`/api/transactions?date=${today}`);
+      return data;
+    },
+    refetchInterval: 30000, // Refetch every 30 seconds for real-time updates
   });
 };
 
@@ -185,6 +212,7 @@ export const useCreateTransaction = () => {
       queryClient.invalidateQueries({ queryKey: ['receipts'] });
       queryClient.invalidateQueries({ queryKey: ['payments'] });
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.accounts });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.agents });
     },
   });
 };
@@ -202,6 +230,7 @@ export const useUpdateTransaction = () => {
       queryClient.invalidateQueries({ queryKey: ['receipts'] });
       queryClient.invalidateQueries({ queryKey: ['payments'] });
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.accounts });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.agents });
     },
   });
 };
@@ -219,6 +248,7 @@ export const useDeleteTransaction = () => {
       queryClient.invalidateQueries({ queryKey: ['receipts'] });
       queryClient.invalidateQueries({ queryKey: ['payments'] });
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.accounts });
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.agents });
     },
   });
 };

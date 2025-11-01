@@ -1,13 +1,11 @@
-// pages/dashboard.tsx - Refactored with React Query
+// pages/dashboard.tsx - Fixed with correct balance calculations
 import Layout from "@/components/layout/Layout";
 import SummaryCards from "@/components/dashboard/SummaryCards";
 import AgentCard from "@/components/dashboard/AgentCard";
 import ReceiveCashModal from "@/components/dashboard/ReceiveCashModal";
 import MakePaymentModal from "@/components/dashboard/MakePaymentModal";
 import { useState } from "react";
-import { useAgents } from "@/hooks/queries/useAgents";
-import { useAccounts } from "@/hooks/queries/useAgents";
-import { useTransactions } from "@/hooks/queries/useAgents";
+import { useAgents, useAccounts, useAllTransactions, useTodayTransactions } from "@/hooks/queries/useAgents";
 
 interface SavedReceiptInfo {
   transactionNumber: string;
@@ -29,12 +27,30 @@ export default function Dashboard() {
   const [selectedAgentName, setSelectedAgentName] = useState<string | null>(null);
 
   const today = new Date().toISOString().split("T")[0];
+  const startOfDay = new Date(today);
+  startOfDay.setHours(0, 0, 0, 0);
 
-  // React Query hooks - automatic caching and refetching
+  // React Query hooks
   const { data: agents = [], isLoading: agentsLoading } = useAgents();
   const { data: accounts = [], isLoading: accountsLoading } = useAccounts();
-  const { data: todayReceipts = [] } = useTransactions("receipt", today);
-  const { data: todayPayments = [] } = useTransactions("payment", today);
+  
+  // Get ALL transactions (including journal entries) for opening balance calculation
+  const { data: allTransactions = [] } = useAllTransactions();
+  
+  // Get today's transactions (all types including journal entries)
+  const { data: todayTransactions = [] } = useTodayTransactions();
+
+  // Filter today's transactions by type
+  const todayReceipts = todayTransactions.filter((t: any) => t.type === "receipt");
+  const todayPayments = todayTransactions.filter(
+    (t: any) => t.type === "payment" && t.debitAccount?.type === "recipient"
+  );
+  const todayCommissions = todayTransactions.filter(
+    (t: any) => 
+      t.type === "journalentry" && 
+      t.creditAccount?.type === "income" &&
+      t.creditAccount?.name === "Commission"
+  );
 
   const getAgentAccount = (agentId: string) => {
     return accounts.find(
@@ -42,23 +58,63 @@ export default function Dashboard() {
     );
   };
 
+  // Calculate opening balance (balance before today)
+  const calculateOpeningBalance = (agentAccountId: string, account: any) => {
+    if (!agentAccountId) return 0;
+
+    // Get transactions BEFORE today
+    const priorTransactions = allTransactions.filter((t: any) => {
+      const txnDate = new Date(t.date);
+      return txnDate < startOfDay;
+    });
+
+    // Start with the account's opening balance (negative for agent accounts)
+    let balance = account?.openingBalance || 0;
+
+    // Process all prior transactions
+    priorTransactions.forEach((txn: any) => {
+      const isDebited = txn.debitAccount?._id === agentAccountId;
+      const isCredited = txn.creditAccount?._id === agentAccountId;
+
+      if (isDebited) {
+        // Agent is debited (reduces their credit balance, i.e., they owe us less)
+        balance += txn.amount;
+      } else if (isCredited) {
+        // Agent is credited (increases their credit balance, i.e., they owe us more)
+        balance -= txn.amount;
+      }
+    });
+
+    return balance;
+  };
+
   const getAgentData = (agentId: string) => {
     const account = getAgentAccount(agentId);
-    const opening = account?.balance || 0;
+    const agentAccountId = account?._id;
 
+    // Calculate opening balance (before today's transactions)
+    const opening = calculateOpeningBalance(agentAccountId, account);
+
+    // Today's receipts from this agent: Dr Cash | Cr Agent
     const agentReceipts = todayReceipts.filter(
-      (r: any) => r.fromAccount?._id === account?._id
+      (r: any) => r.creditAccount?._id === agentAccountId
     );
 
-    const agentPayments = todayPayments.filter(
-      (p: any) => p.effectedAccount?._id === account?._id
+    // Today's commission journal entries for this agent: Dr Agent | Cr Commission
+    const agentCommissions = todayCommissions.filter(
+      (c: any) => c.debitAccount?._id === agentAccountId
+    );
+
+    // Today's payments (clearing journals): Dr Agent | Cr Recipient
+    const agentPayments = todayTransactions.filter(
+      (p: any) => 
+        p.type === "journalentry" &&
+        p.debitAccount?._id === agentAccountId &&
+        p.creditAccount?.type === "recipient"
     );
 
     const received = agentReceipts.reduce((sum: number, r: any) => sum + r.amount, 0);
-    const commission = agentReceipts.reduce(
-      (sum: number, r: any) => sum + (r.commissionAmount || 0),
-      0
-    );
+    const commission = agentCommissions.reduce((sum: number, c: any) => sum + c.amount, 0);
     const paid = agentPayments.reduce((sum: number, p: any) => sum + p.amount, 0);
 
     return { opening, received, commission, paid };
@@ -95,21 +151,23 @@ export default function Dashboard() {
   const handleCashReceived = async (receiptInfo: SavedReceiptInfo) => {
     setReceiptSuccess(receiptInfo);
     setIsReceiveModalOpen(false);
-    // React Query automatically refetches after mutations
   };
 
   const handleCashPayed = async (paymentInfo: SavedPaymentInfo) => {
     setPaymentSuccess(paymentInfo);
     setIsPaymentModalOpen(false);
-    // React Query automatically refetches after mutations
   };
 
+  // Calculate summary totals
   const totalReceived = todayReceipts.reduce((sum: number, r: any) => sum + r.amount, 0);
-  const totalCommission = todayReceipts.reduce(
-    (sum: number, r: any) => sum + (r.commissionAmount || 0),
-    0
-  );
+  const totalCommission = todayCommissions.reduce((sum: number, c: any) => sum + c.amount, 0);
   const totalPaid = todayPayments.reduce((sum: number, p: any) => sum + p.amount, 0);
+
+  // Calculate opening balance for cash account (before today)
+  const cashAccount = accounts.find((acc: any) => acc.type === "cash");
+  const cashOpeningBalance = cashAccount 
+    ? calculateOpeningBalance(cashAccount._id, cashAccount)
+    : 0;
 
   if (agentsLoading || accountsLoading) {
     return (
@@ -125,6 +183,7 @@ export default function Dashboard() {
     <Layout>
       <div className="space-y-6">
         <SummaryCards
+          openingBalance={cashOpeningBalance}
           totalReceived={totalReceived}
           totalCommission={totalCommission}
           totalPaid={totalPaid}
