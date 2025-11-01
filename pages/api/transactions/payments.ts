@@ -11,8 +11,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const payments = await Transaction.find({ type: "payment" })
       .sort({ createdAt: -1 })
       .limit(5)
-      .populate("fromAccount", "name")
-      .populate("toAccount", "name");
+      .populate("debitAccount", "name")  // Updated: from fromAccount to debitAccount
+      .populate("creditAccount", "name"); // Updated: from toAccount to creditAccount
 
     const formatted = payments.map((t) => ({
       _id: t._id,
@@ -20,8 +20,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       note: t.note,
       amount: t.amount,
       date: t.date,
+      // Updated: For payments, debitAccount is Recipient and creditAccount is Cash
+      // We want to show the Recipient name (debitAccount) in the payment list
       account: {
-        name: t.toAccount?.name || "Unknown",
+        name: t.debitAccount?.name || "Unknown", // Updated: from toAccount to debitAccount
       },
     }));
 

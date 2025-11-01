@@ -1,4 +1,5 @@
-// components/dashboard/ReceiveCashModal.tsx - Refactored with React Query
+// Updated with debit/credit terminology
+
 import { useState, useEffect, useRef } from "react";
 import {
   BanknotesIcon,
@@ -51,12 +52,10 @@ const ReceiveCashModal = ({
   
   const isCommissionAmountFocused = useRef(false);
 
-  // React Query hooks
   const { data: agent, isLoading: agentLoading } = useAgent(agentId || "");
   const { data: allAccounts = [], isLoading: accountsLoading } = useAccounts();
   const createTransactionMutation = useCreateTransaction();
 
-  // Find the agent's account and cash account
   const agentAccount = allAccounts.find(
     (acc: Account) => acc.linkedEntityType === "agent" && acc.linkedEntityId === agentId
   );
@@ -68,7 +67,6 @@ const ReceiveCashModal = ({
     account: agentAccount
   } : null;
 
-  // Calculate commission automatically
   useEffect(() => {
     if (agentWithAccount?.commPercent && typeof amount === 'number') {
       if (!isCommissionAmountFocused.current) {
@@ -81,7 +79,6 @@ const ReceiveCashModal = ({
     }
   }, [amount, agentWithAccount]);
 
-  // Reset form when modal opens
   useEffect(() => {
     if (isOpen) {
       resetForm();
@@ -123,7 +120,6 @@ const ReceiveCashModal = ({
   };
 
   const handleSave = async () => {
-    // Validation checks
     if (!agentId) {
       alert("Agent information is missing.");
       return;
@@ -145,9 +141,11 @@ const ReceiveCashModal = ({
     }
 
     try {
+      // UPDATED: Using debit/credit terminology
+      // Receipt: Dr Cash | Cr Agent
       const receiptData = {
-        fromAccount: agentWithAccount.account._id,
-        toAccount: cashAccount._id,
+        debitAccount: cashAccount._id,              // Cash (Dr)
+        creditAccount: agentWithAccount.account._id, // Agent (Cr)
         amount: amount,
         date: date,
         note: note,
@@ -197,7 +195,6 @@ const ReceiveCashModal = ({
           onSubmit={(e) => e.preventDefault()}
           className="space-y-6"
         >
-          {/* Agent Account (Read-only Input) */}
           <div className="space-y-1">
             <label className="block text-sm font-medium text-gray-700">
               Agent Account
@@ -213,7 +210,6 @@ const ReceiveCashModal = ({
             </div>
           </div>
 
-          {/* Amount */}
           <div className="space-y-1">
             <label className="block text-sm font-medium text-gray-700">
               Amount Received
@@ -232,7 +228,6 @@ const ReceiveCashModal = ({
             </div>
           </div>
 
-          {/* Commission Amount */}
           <div className="space-y-1">
             <label className="block text-sm font-medium text-gray-700">
               Commission Amount
@@ -252,7 +247,6 @@ const ReceiveCashModal = ({
             </div>
           </div>
 
-          {/* Date */}
           <div className="space-y-1">
             <label className="block text-sm font-medium text-gray-700">
               Date
@@ -269,7 +263,6 @@ const ReceiveCashModal = ({
             </div>
           </div>
 
-          {/* Note */}
           <div className="space-y-1">
             <label className="block text-sm font-medium text-gray-700">
               Note
@@ -287,7 +280,6 @@ const ReceiveCashModal = ({
             </div>
           </div>
 
-          {/* Action Buttons */}
           <div className="pt-4 flex justify-end gap-2">
             <button
               type="button"

@@ -1,5 +1,4 @@
-
-// pages/transactions/journal/all.tsx
+// pages/transactions/journal/all.tsx - Updated with debit/credit
 import Layout from "@/components/layout/Layout";
 import { EllipsisHorizontalIcon, ArrowRightIcon } from "@heroicons/react/24/outline";
 import Link from "next/link";
@@ -13,11 +12,11 @@ type JournalEntry = {
   amount: number;
   date: string;
   note: string;
-  fromAccount: {
+  debitAccount: {   // UPDATED: was fromAccount
     _id: string;
     name: string;
   };
-  toAccount: {
+  creditAccount: {  // UPDATED: was toAccount
     _id: string;
     name: string;
   };
@@ -110,13 +109,13 @@ export default function AllJournalEntriesPage() {
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  From Account
+                  Debit Account
                 </th>
                 <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                   →
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  To Account
+                  Credit Account
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Journal No
@@ -139,13 +138,13 @@ export default function AllJournalEntriesPage() {
               {entries.map((entry) => (
                 <tr key={entry._id} className="hover:bg-gray-50 transition-colors duration-150">
                   <td className="px-4 py-4 whitespace-nowrap font-medium text-gray-900">
-                    {entry.fromAccount?.name || "Unknown"}
+                    {entry.debitAccount?.name || "Unknown"}
                   </td>
                   <td className="px-4 py-4 whitespace-nowrap text-center">
                     <ArrowRightIcon className="h-4 w-4 text-gray-400 mx-auto" />
                   </td>
                   <td className="px-4 py-4 whitespace-nowrap font-medium text-gray-900">
-                    {entry.toAccount?.name || "Unknown"}
+                    {entry.creditAccount?.name || "Unknown"}
                   </td>
                   <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
                     {entry.transactionNumber}
@@ -210,9 +209,9 @@ export default function AllJournalEntriesPage() {
             >
               <div className="px-4 py-3 bg-gray-50 flex justify-between items-center border-b border-gray-200">
                 <div className="flex items-center space-x-2 text-sm">
-                  <span className="font-medium text-gray-900">{entry.fromAccount?.name}</span>
+                  <span className="font-medium text-gray-900">{entry.debitAccount?.name}</span>
                   <ArrowRightIcon className="h-4 w-4 text-gray-400" />
-                  <span className="font-medium text-gray-900">{entry.toAccount?.name}</span>
+                  <span className="font-medium text-gray-900">{entry.creditAccount?.name}</span>
                 </div>
                 <div className="relative menu-container">
                   <button

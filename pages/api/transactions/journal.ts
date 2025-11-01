@@ -10,8 +10,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const journals = await Transaction.find({ type: "journalentry" })
       .sort({ createdAt: -1 })
       .limit(5)
-      .populate("fromAccount", "name")
-      .populate("toAccount", "name");
+      .populate("debitAccount", "name")  // Updated: from fromAccount to debitAccount
+      .populate("creditAccount", "name"); // Updated: from toAccount to creditAccount
 
     const formatted = journals.map((t) => ({
       _id: t._id,
@@ -19,11 +19,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       note: t.note,
       amount: t.amount,
       date: t.date,
-      fromAccount: {
-        name: t.fromAccount?.name || "Unknown",
+      // Updated: For journal entries, debitAccount is the account being debited
+      // and creditAccount is the account being credited
+      debitAccount: {
+        name: t.debitAccount?.name || "Unknown", // Updated: from fromAccount to debitAccount
       },
-      toAccount: {
-        name: t.toAccount?.name || "Unknown",
+      creditAccount: {
+        name: t.creditAccount?.name || "Unknown", // Updated: from toAccount to creditAccount
       },
     }));
 

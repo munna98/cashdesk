@@ -1,4 +1,4 @@
-// components/transactions/JournalEntryForm.tsx
+// components/transactions/JournalEntryForm.tsx - Updated with debit/credit
 import { useState, useEffect } from "react";
 import {
   BanknotesIcon,
@@ -27,8 +27,8 @@ interface JournalEntryFormProps {
 }
 
 export default function JournalEntryForm({ onJournalSaved }: JournalEntryFormProps) {
-  const [fromAccountId, setFromAccountId] = useState("");
-  const [toAccountId, setToAccountId] = useState("");
+  const [debitAccountId, setDebitAccountId] = useState("");
+  const [creditAccountId, setCreditAccountId] = useState("");
   const [amount, setAmount] = useState("");
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
   const [note, setNote] = useState("");
@@ -46,13 +46,13 @@ export default function JournalEntryForm({ onJournalSaved }: JournalEntryFormPro
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!fromAccountId || !toAccountId) {
-      alert("Please select both from and to accounts.");
+    if (!debitAccountId || !creditAccountId) {
+      alert("Please select both debit and credit accounts.");
       return;
     }
 
-    if (fromAccountId === toAccountId) {
-      alert("From and To accounts cannot be the same.");
+    if (debitAccountId === creditAccountId) {
+      alert("Debit and Credit accounts cannot be the same.");
       return;
     }
 
@@ -62,9 +62,10 @@ export default function JournalEntryForm({ onJournalSaved }: JournalEntryFormPro
     }
 
     try {
+      // UPDATED: Using debit/credit terminology
       const journalData = {
-        fromAccount: fromAccountId,
-        toAccount: toAccountId,
+        debitAccount: debitAccountId,   // Account to debit
+        creditAccount: creditAccountId, // Account to credit
         amount: Number(amount),
         date,
         note,
@@ -81,8 +82,8 @@ export default function JournalEntryForm({ onJournalSaved }: JournalEntryFormPro
       setSavedJournal(savedInfo);
 
       // Reset form
-      setFromAccountId("");
-      setToAccountId("");
+      setDebitAccountId("");
+      setCreditAccountId("");
       setAmount("");
       setNote("");
       setDate(new Date().toISOString().split("T")[0]);
@@ -125,21 +126,21 @@ export default function JournalEntryForm({ onJournalSaved }: JournalEntryFormPro
           Create Journal Entry
         </h2>
 
-        {/* From Account */}
+        {/* Debit Account */}
         <div className="space-y-1">
           <label className="block text-sm font-medium text-gray-700">
-            From Account (Debit)
+            Debit Account
           </label>
           <div className="relative">
             <UserCircleIcon className="h-5 w-5 absolute top-2.5 left-3 text-gray-400" />
             <select
-              value={fromAccountId}
-              onChange={(e) => setFromAccountId(e.target.value)}
+              value={debitAccountId}
+              onChange={(e) => setDebitAccountId(e.target.value)}
               required
               disabled={isSubmitting}
               className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50"
             >
-              <option value="">-- Select Account --</option>
+              <option value="">-- Select Debit Account --</option>
               {availableAccounts.map((acc: Account) => (
                 <option key={acc._id} value={acc._id}>
                   {acc.name} ({acc.type})
@@ -154,21 +155,21 @@ export default function JournalEntryForm({ onJournalSaved }: JournalEntryFormPro
           <ArrowRightIcon className="h-6 w-6 text-gray-400" />
         </div>
 
-        {/* To Account */}
+        {/* Credit Account */}
         <div className="space-y-1">
           <label className="block text-sm font-medium text-gray-700">
-            To Account (Credit)
+            Credit Account
           </label>
           <div className="relative">
             <UserCircleIcon className="h-5 w-5 absolute top-2.5 left-3 text-gray-400" />
             <select
-              value={toAccountId}
-              onChange={(e) => setToAccountId(e.target.value)}
+              value={creditAccountId}
+              onChange={(e) => setCreditAccountId(e.target.value)}
               required
               disabled={isSubmitting}
               className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50"
             >
-              <option value="">-- Select Account --</option>
+              <option value="">-- Select Credit Account --</option>
               {availableAccounts.map((acc: Account) => (
                 <option key={acc._id} value={acc._id}>
                   {acc.name} ({acc.type})

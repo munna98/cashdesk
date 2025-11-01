@@ -1,4 +1,3 @@
-
 import { NextApiRequest, NextApiResponse } from "next";
 import dbConnect from "@/lib/mongodb";
 import Transaction from "@/models/Transaction";
@@ -10,18 +9,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const receipts = await Transaction.find({ type: "receipt" })
       .sort({ createdAt: -1 })
       .limit(5)
-      .populate("fromAccount", "name")
-      .populate("toAccount", "name");
+      .populate("debitAccount", "name")  // Updated: from fromAccount to debitAccount
+      .populate("creditAccount", "name"); // Updated: from toAccount to creditAccount
 
     const formatted = receipts.map((t) => ({
       _id: t._id,
       transactionNumber: t.transactionNumber,
       note: t.note,
       amount: t.amount,
-      commission: t.commission, 
+      commission: t.commissionAmount, // Updated: from commission to commissionAmount
       date: t.date,
+      // Updated: For receipts, debitAccount is Cash and creditAccount is Agent
+      // We want to show the Agent name (creditAccount) in the receipt list
       account: {
-        name: t.fromAccount?.name || "Unknown",
+        name: t.creditAccount?.name || "Unknown", // Updated: from fromAccount to creditAccount
       },
     }));
 

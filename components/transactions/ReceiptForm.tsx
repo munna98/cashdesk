@@ -1,4 +1,4 @@
-// components/transactions/ReceiptForm.tsx - Refactored with React Query
+// components/transactions/ReceiptForm.tsx - Updated with debit/credit
 import { useState, useEffect, useRef } from "react";
 import {
   BanknotesIcon,
@@ -107,9 +107,11 @@ export default function ReceiptForm({ onReceiptSaved }: ReceiptFormProps) {
       return;
     }
 
+    // UPDATED: Using debit/credit terminology
+    // Receipt: Dr Cash | Cr Agent
     const receipt = {
-      fromAccount: selectedAgent.account._id,
-      toAccount: cashAccountId,
+      debitAccount: cashAccountId,              // Cash Account (Dr)
+      creditAccount: selectedAgent.account._id, // Agent Account (Cr)
       amount: Number(amount),
       date,
       note,

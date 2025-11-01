@@ -1,4 +1,4 @@
-// components/transactions/PaymentForm.tsx - Updated for journal entry
+// components/transactions/PaymentForm.tsx - Updated with debit/credit
 import { useState, useEffect } from "react";
 import {
   BanknotesIcon,
@@ -31,7 +31,7 @@ export default function PaymentForm({ onPaymentSaved }: PaymentFormProps) {
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
   const [note, setNote] = useState("");
   const [savedPayment, setSavedPayment] = useState<SavedPaymentInfo | null>(null);
-  const [selectedToAccountType, setSelectedToAccountType] = useState("");
+  const [selectedAccountType, setSelectedAccountType] = useState("");
 
   // React Query hooks
   const { data: allAccounts = [], isLoading: accountsLoading } = useAccounts();
@@ -50,7 +50,7 @@ export default function PaymentForm({ onPaymentSaved }: PaymentFormProps) {
   // Update selected account type when accountId changes
   useEffect(() => {
     const selected = accounts.find((acc: Account) => acc._id === accountId);
-    setSelectedToAccountType(selected?.type || "");
+    setSelectedAccountType(selected?.type || "");
     
     // Reset effected account when changing to non-recipient
     if (selected?.type !== "recipient") {
@@ -61,19 +61,21 @@ export default function PaymentForm({ onPaymentSaved }: PaymentFormProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (selectedToAccountType === "recipient" && !effectedAccountId) {
+    if (selectedAccountType === "recipient" && !effectedAccountId) {
       alert("Please select a From Agent.");
       return;
     }
 
+    // UPDATED: Using debit/credit terminology
+    // Payment: Dr Expense/Recipient | Cr Cash
     const payment = {
-      fromAccount: cashAccountId,
-      toAccount: accountId,
-      effectedAccount: selectedToAccountType === "recipient" ? effectedAccountId : undefined,
+      debitAccount: accountId,        // Expense/Recipient Account (Dr)
+      creditAccount: cashAccountId,   // Cash Account (Cr)
       amount: Number(amount),
       date,
       note,
       type: "payment" as const,
+      effectedAccount: selectedAccountType === "recipient" ? effectedAccountId : undefined,
     };
 
     try {
@@ -91,7 +93,7 @@ export default function PaymentForm({ onPaymentSaved }: PaymentFormProps) {
       setAmount("");
       setNote("");
       setDate(new Date().toISOString().split("T")[0]);
-      setSelectedToAccountType("");
+      setSelectedAccountType("");
 
       if (onPaymentSaved) onPaymentSaved();
     } catch (error: any) {
@@ -119,7 +121,7 @@ export default function PaymentForm({ onPaymentSaved }: PaymentFormProps) {
           <p className="text-sm">
             Transaction #{savedPayment.transactionNumber} for ₹
             {savedPayment.amount.toFixed(2)} has been recorded.
-            {selectedToAccountType === "recipient" && (
+            {selectedAccountType === "recipient" && (
               <span className="block mt-1">
                 ✓ Agent clearing journal entry created
               </span>
@@ -161,7 +163,7 @@ export default function PaymentForm({ onPaymentSaved }: PaymentFormProps) {
         </div>
 
         {/* From Agent (only if To Account is a recipient) */}
-        {selectedToAccountType === "recipient" && (
+        {selectedAccountType === "recipient" && (
           <div className="space-y-1">
             <label className="block text-sm font-medium text-gray-700">
               From Agent <span className="text-red-500">*</span>

@@ -1,3 +1,5 @@
+// Updated with debit/credit terminology
+
 import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
 import axios from "axios";
@@ -8,12 +10,12 @@ type Transaction = {
   date: string;
   transactionNumber: string;
   note: string;
-  type: "receipt" | "payment";
-  fromAccount: {
+  type: "receipt" | "payment" | "journalentry";
+  debitAccount: {    // UPDATED
     _id: string;
     name: string;
   };
-  toAccount: {
+  creditAccount: {   // UPDATED
     _id: string;
     name: string;
   };
@@ -27,6 +29,7 @@ type Transaction = {
 type LedgerData = {
   accountName: string;
   accountType: string;
+  isDebitNormal: boolean;
   period: {
     startDate: string;
     endDate: string;
@@ -72,20 +75,11 @@ export default function LedgerPage() {
     fetchLedger();
   };
 
-  // ⭐ NEW UTILITY FUNCTION: Correctly determines the balance suffix and color
   const getBalanceDisplay = (balance: number, accountType: string) => {
-    // These account types have a normal balance as Credit (negative number from API)
     const creditAccountTypes = ["liability", "income", "agent", "recipient"];
     const isCreditAccount = creditAccountTypes.includes(accountType);
-
-    // Determine the suffix (API provides negative for 'Cr', positive for 'Dr')
     const suffix = balance >= 0 ? "Dr" : "Cr";
-
-    // Determine if the balance is 'unusual' (i.e., not its normal sign)
-    // - Asset/Expense: Dr balance (>= 0) is normal. Cr balance (< 0) is unusual (red).
-    // - Liability/Income: Cr balance (< 0) is normal. Dr balance (>= 0) is unusual (red).
     const isUnusualBalance = (isCreditAccount && balance >= 0) || (!isCreditAccount && balance < 0);
-
     const colorClass = isUnusualBalance && balance !== 0 ? "text-red-600" : "text-gray-900";
 
     return {
@@ -116,14 +110,12 @@ export default function LedgerPage() {
             </div>
             <div>
               <p className="text-sm text-gray-600">Opening Balance</p>
-              {/* Apply getBalanceDisplay for Opening Balance */}
               <p className="font-medium">
                 {getBalanceDisplay(ledgerData.openingBalance, ledgerData.accountType).display}
               </p>
             </div>
             <div>
               <p className="text-sm text-gray-600">Closing Balance</p>
-              {/* Apply getBalanceDisplay for Closing Balance with color */}
               <p
                 className={`font-medium ${getBalanceDisplay(ledgerData.closingBalance, ledgerData.accountType).colorClass}`}
               >
@@ -183,7 +175,6 @@ export default function LedgerPage() {
             </thead>
             <tbody>
               {ledgerData.entries.map((txn) => {
-                // Apply getBalanceDisplay for each transaction row
                 const balanceDisplay = getBalanceDisplay(txn.balance, ledgerData.accountType);
 
                 return (
@@ -230,7 +221,6 @@ export default function LedgerPage() {
                     .reduce((sum, txn) => sum + txn.credit, 0)
                     .toLocaleString()}
                 </td>
-                {/* Apply getBalanceDisplay for Closing Balance in the footer */}
                 <td
                   className={`px-4 py-2 text-right ${getBalanceDisplay(ledgerData.closingBalance, ledgerData.accountType).colorClass
                     }`}

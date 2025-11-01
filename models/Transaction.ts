@@ -1,4 +1,4 @@
-// models/Transaction.ts - Updated model without effectedAccount
+// models/Transaction.ts - Updated with debit/credit terminology
 import mongoose, { Schema, model, models } from "mongoose";
 
 const transactionSchema = new Schema(
@@ -8,12 +8,13 @@ const transactionSchema = new Schema(
       required: true,
       unique: true,
     },
-    fromAccount: {
+    // UPDATED: Changed from fromAccount/toAccount to debitAccount/creditAccount
+    debitAccount: {
       type: Schema.Types.ObjectId,
       ref: "Account",
       required: true,
     },
-    toAccount: {
+    creditAccount: {
       type: Schema.Types.ObjectId,
       ref: "Account",
       required: true,
@@ -53,3 +54,23 @@ const transactionSchema = new Schema(
 
 const Transaction = models.Transaction || model("Transaction", transactionSchema);
 export default Transaction;
+
+/**
+ * ACCOUNTING RULES:
+ * 
+ * RECEIPT (Dr Cash | Cr Agent):
+ *   debitAccount: Cash Account
+ *   creditAccount: Agent Account
+ * 
+ * PAYMENT (Dr Expense/Recipient | Cr Cash):
+ *   debitAccount: Expense/Recipient Account
+ *   creditAccount: Cash Account
+ * 
+ * JOURNAL ENTRY:
+ *   debitAccount: Account being debited
+ *   creditAccount: Account being credited
+ * 
+ * COMMISSION (Dr Agent | Cr Commission Income):
+ *   debitAccount: Agent Account
+ *   creditAccount: Commission Income Account
+ */

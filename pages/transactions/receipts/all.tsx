@@ -1,8 +1,8 @@
-// pages/transactions/receipts/all.tsx - Updated delete with warning
+// pages/transactions/receipts/all.tsx - Updated with debit/credit
 import Layout from "@/components/layout/Layout";
 import { EllipsisHorizontalIcon, BanknotesIcon } from "@heroicons/react/24/outline";
 import Link from "next/link";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import { useReceipts, useDeleteTransaction } from "@/hooks/queries/useAgents";
 
@@ -13,7 +13,12 @@ type Receipt = {
   commissionAmount?: number;
   date: string;
   note: string;
-  account: {
+  debitAccount: {   // UPDATED: was fromAccount
+    _id: string;
+    name: string;
+  };
+  creditAccount: {  // UPDATED: was toAccount
+    _id: string;
     name: string;
   };
 };
@@ -29,7 +34,6 @@ export default function AllReceiptsPage() {
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       const target = event.target as HTMLElement;
-      // Don't close if clicking on a menu button or menu item
       if (target.closest('.menu-container')) {
         return;
       }
@@ -57,7 +61,7 @@ export default function AllReceiptsPage() {
     confirmMessage += `Amount: ₹${receipt.amount.toLocaleString()}\n`;
     
     if (hasCommission) {
-      confirmMessage += `\n⚠️ WARNING: This will also delete the related commission payment `;
+      confirmMessage += `\n⚠️ WARNING: This will also delete the related commission journal entry`;
     }
     
     const confirm = window.confirm(confirmMessage);
@@ -102,7 +106,9 @@ export default function AllReceiptsPage() {
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Account</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Agent Account (Cr)
+                </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Receipt No</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Note</th>
@@ -115,7 +121,7 @@ export default function AllReceiptsPage() {
               {receipts.map((receipt: Receipt) => (
                 <tr key={receipt._id} className="hover:bg-gray-50 transition-colors duration-150">
                   <td className="px-4 py-4 whitespace-nowrap font-medium text-gray-900">
-                    {receipt.account?.name || "Unknown"}
+                    {receipt.creditAccount?.name || "Unknown"}
                   </td>
                   <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
                     {receipt.transactionNumber}
@@ -184,7 +190,7 @@ export default function AllReceiptsPage() {
             >
               <div className="px-4 py-3 bg-gray-50 flex justify-between items-center border-b border-gray-200">
                 <h3 className="font-medium text-gray-900 truncate">
-                  {receipt.account?.name || "Unknown"}
+                  {receipt.creditAccount?.name || "Unknown"}
                 </h3>
                 <div className="relative menu-container">
                   <button

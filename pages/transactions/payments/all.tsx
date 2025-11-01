@@ -1,5 +1,4 @@
-// pages/transactions/payments/all.tsx
-
+// pages/transactions/payments/all.tsx - Updated with debit/credit
 import Layout from "@/components/layout/Layout";
 import { EllipsisHorizontalIcon, BanknotesIcon } from "@heroicons/react/24/outline";
 import Link from "next/link";
@@ -13,7 +12,10 @@ type Payment = {
   amount: number;
   date: string;
   note: string;
-  account: {
+  debitAccount: {   // UPDATED: was toAccount
+    name: string;
+  };
+  creditAccount: {  // UPDATED: was fromAccount
     name: string;
   };
 };
@@ -28,7 +30,7 @@ export default function AllPaymentsPage() {
   useEffect(() => {
     const fetchPayments = async () => {
       try {
-        const res = await axios.get("/api/transactions/payments?all=true");
+        const res = await axios.get("/api/transactions?type=payment");
         setPayments(res.data);
       } catch (err) {
         console.error("Error fetching payments:", err);
@@ -98,7 +100,7 @@ export default function AllPaymentsPage() {
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Account
+                      Account (Dr)
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Payment No
@@ -125,7 +127,7 @@ export default function AllPaymentsPage() {
                     >
                       <td className="px-4 py-4 whitespace-nowrap">
                         <div className="font-medium text-gray-900">
-                          {payment.account?.name || "Unknown"}
+                          {payment.debitAccount?.name || "Unknown"}
                         </div>
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -183,17 +185,16 @@ export default function AllPaymentsPage() {
               </table>
             </div>
 
-            {/* Mobile card view - similar to agent card design */}
+            {/* Mobile card view */}
             <div className="md:hidden grid grid-cols-1 gap-4">
               {payments.map((payment) => (
                 <div
                   key={payment._id}
                   className="bg-white rounded-lg shadow border border-gray-200 hover:shadow-md transition-shadow"
                 >
-                  {/* Card Header */}
                   <div className="px-4 py-3 bg-gray-50 flex justify-between items-center border-b border-gray-200">
                     <h3 className="font-medium text-gray-900 truncate">
-                      {payment.account?.name || "Unknown"}
+                      {payment.debitAccount?.name || "Unknown"}
                     </h3>
                     <div className="relative" ref={menuOpenId === payment._id ? menuRef : null}>
                       <button
@@ -231,7 +232,6 @@ export default function AllPaymentsPage() {
                     </div>
                   </div>
 
-                  {/* Card Body */}
                   <div className="p-4 space-y-3">
                     <div className="flex items-center space-x-2 text-sm text-gray-600">
                       <BanknotesIcon className="h-5 w-5 text-gray-400" />

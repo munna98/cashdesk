@@ -6,8 +6,8 @@ export const calculateBalance = async (accountId: string) => {
     {
       $match: {
         $or: [
-          { fromAccount: accountId },
-          { toAccount: accountId }
+          { debitAccount: accountId },  // UPDATED: Check debitAccount
+          { creditAccount: accountId } // UPDATED: Check creditAccount
         ]
       }
     },
@@ -16,12 +16,12 @@ export const calculateBalance = async (accountId: string) => {
         _id: null,
         debit: {
           $sum: {
-            $cond: [{ $eq: ["$toAccount", accountId] }, "$amount", 0]
+            $cond: [{ $eq: ["$debitAccount", accountId] }, "$amount", 0] // UPDATED: Sum amount when account is debited
           }
         },
         credit: {
           $sum: {
-            $cond: [{ $eq: ["$fromAccount", accountId] }, "$amount", 0]
+            $cond: [{ $eq: ["$creditAccount", accountId] }, "$amount", 0] // UPDATED: Sum amount when account is credited
           }
         }
       }
@@ -29,5 +29,5 @@ export const calculateBalance = async (accountId: string) => {
   ]);
 
   const { debit = 0, credit = 0 } = result[0] || {};
-  return debit - credit; // positive = balance in favor, negative = owed
+  return debit - credit; // positive = net debit balance, negative = net credit balance (owed)
 };

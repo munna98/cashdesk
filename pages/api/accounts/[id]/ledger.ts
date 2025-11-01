@@ -1,3 +1,4 @@
+// pages/api/accounts/[id]/ledger.ts - Updated with debit/credit terminology
 import dbConnect from "@/lib/mongodb";
 import Transaction from "@/models/Transaction";
 import Account from "@/models/Account";
@@ -20,88 +21,75 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         if (startDate) dateFilter.$gte = new Date(startDate as string);
         if (endDate) dateFilter.$lte = new Date(endDate as string);
 
-        // 3️⃣ Build query
+        // 3️⃣ Build query - account appears in either debit or credit side
         const transactionsQuery = {
-            $or: [{ fromAccount: id }, { toAccount: id }],
+            $or: [{ debitAccount: id }, { creditAccount: id }],
             ...(Object.keys(dateFilter).length > 0 && { date: dateFilter }),
         };
 
         const transactions = await Transaction.find(transactionsQuery)
             .sort({ date: 1, createdAt: 1 })
-            .populate("fromAccount", "name type")
-            .populate("toAccount", "name type");
+            .populate("debitAccount", "name type")
+            .populate("creditAccount", "name type");
 
-        // 4️⃣ Determine how Dr/Cr affects this account type
-        const debitIncreaseTypes = ["asset", "expense", "cash"];
+        // 4️⃣ Determine account nature (Asset/Expense = Debit normal, Liability/Income = Credit normal)
+        const debitNormalTypes = ["asset", "expense", "cash", "agent"];
+        const isDebitNormal = debitNormalTypes.includes(account.type);
         
-        // Determines if a Debit makes the balance increase (True for Assets/Expenses)
-        const isDebitPositive = debitIncreaseTypes.includes(account.type);
-        
-        // 5️⃣ Calculate opening balance (before startDate)
+        // 5️⃣ Calculate opening balance
         let openingBalance = account.openingBalance || 0;
 
-        // FIX: Start with the correct sign convention for the opening balance
-        if (!isDebitPositive) {
-            openingBalance = -openingBalance;
+        // Apply correct sign based on account nature
+        if (!isDebitNormal) {
+            openingBalance = -openingBalance; // Liability/Income show as negative initially
         }
 
         if (startDate) {
             const priorTxns = await Transaction.find({
-                $or: [{ fromAccount: id }, { toAccount: id }],
+                $or: [{ debitAccount: id }, { creditAccount: id }],
                 date: { $lt: new Date(startDate as string) },
             });
 
             openingBalance = priorTxns.reduce((balance, txn) => {
-                const isDebit = txn.fromAccount.toString() === id;
+                const isDebited = txn.debitAccount.toString() === id;
                 const amount = txn.amount;
 
-                // Determine the correct adjustment sign for the running balance
-                let adjustment: number;
-
-                if (isDebit) {
-                    // Account is credited (Money OUT for Asset/Expense, Money IN for Liability/Income)
-                    // Must be NEGATIVE for Asset/Expense, Must be NEGATIVE for Liability/Income increase
-                    adjustment = isDebitPositive ? -amount : -amount; // FIX: Ensure negative sign for Credit increase on Liability/Income
+                // Debit increases asset/expense, decreases liability/income
+                // Credit decreases asset/expense, increases liability/income
+                if (isDebited) {
+                    return balance + (isDebitNormal ? amount : -amount);
                 } else {
-                    // Account is debited (Money IN for Asset/Expense, Money OUT for Liability/Income)
-                    // Must be POSITIVE for Asset/Expense, Must be POSITIVE for Liability/Income decrease
-                    adjustment = isDebitPositive ? amount : amount; // FIX: Ensure positive sign for Debit decrease on Liability/Income
+                    return balance + (isDebitNormal ? -amount : amount);
                 }
-                
-                return balance + adjustment;
-
             }, openingBalance);
         }
         
-        // 6️⃣ Process transactions with Dr/Cr and running balance
+        // 6️⃣ Process transactions with running balance
         let runningBalance = openingBalance;
         const ledgerEntries = transactions.map((txn) => {
-            // isDebit: True if the current account is the FROM account (Credit side of journal)
-            const isDebit = txn.fromAccount._id.toString() === id;
+            const isDebited = txn.debitAccount._id.toString() === id;
             const amount = txn.amount;
 
-            // Determine Dr/Cr effect on running balance sign (Negative = Cr, Positive = Dr)
-            let adjustment: number;
-
-            // The balance sign should follow this rule:
-            // Asset/Expense: Debit +ve, Credit -ve
-            // Liability/Income: Debit +ve (decrease), Credit -ve (increase)
-
-            if (isDebit) {
-                // Account is credited (Increase for Income/Liability, Decrease for Asset/Expense)
-                // Adjustment MUST be negative.
-                adjustment = -amount; 
+            // Calculate balance change
+            let balanceChange: number;
+            if (isDebited) {
+                // Account is debited
+                balanceChange = isDebitNormal ? amount : -amount;
             } else {
-                // Account is debited (Decrease for Income/Liability, Increase for Asset/Expense)
-                // Adjustment MUST be positive.
-                adjustment = amount;
+                // Account is credited
+                balanceChange = isDebitNormal ? -amount : amount;
             }
             
-            runningBalance += adjustment;
+            runningBalance += balanceChange;
 
-            // Display logic for Debit/Credit columns (remains the same and is CORRECT)
-            const entryDebit = !isDebit ? amount : 0;
-            const entryCredit = isDebit ? amount : 0;
+            // Determine which column the amount appears in
+            const entryDebit = isDebited ? amount : 0;
+            const entryCredit = !isDebited ? amount : 0;
+
+            // Get counterparty (the other account)
+            const counterparty = isDebited 
+                ? txn.creditAccount.name 
+                : txn.debitAccount.name;
 
             return {
                 _id: txn._id,
@@ -109,12 +97,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
                 transactionNumber: txn.transactionNumber,
                 note: txn.note,
                 type: txn.type,
-                fromAccount: txn.fromAccount,
-                toAccount: txn.toAccount,
-                counterparty: isDebit ? txn.toAccount.name : txn.fromAccount.name,
+                debitAccount: txn.debitAccount,
+                creditAccount: txn.creditAccount,
+                counterparty,
                 debit: entryDebit,
-                credit: entryCredit, 
-                balance: runningBalance, // This will now be -1500 for the Commission Credit
+                credit: entryCredit,
+                balance: runningBalance,
             };
         });
 
@@ -122,6 +110,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         const response = {
             accountName: account.name,
             accountType: account.type,
+            isDebitNormal, // Send this to help frontend display
             period: {
                 startDate: startDate || "All time",
                 endDate: endDate || "Present",

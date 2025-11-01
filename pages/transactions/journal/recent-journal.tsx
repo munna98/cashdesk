@@ -1,4 +1,3 @@
-
 // pages/transactions/journal/recent-journal.tsx
 import { useEffect, useState } from "react";
 import axios from "axios";
@@ -10,10 +9,10 @@ type JournalEntry = {
   transactionNumber: string;
   amount: number;
   date: string;
-  fromAccount: {
+  debitAccount: {
     name: string;
   };
-  toAccount: {
+  creditAccount: {
     name: string;
   };
 };
@@ -64,9 +63,9 @@ export default function RecentJournalEntries({ refreshTrigger }: { refreshTrigge
           >
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center space-x-2 text-sm">
-                <span className="font-medium text-gray-800">{entry.fromAccount.name}</span>
+                <span className="font-medium text-gray-800">{entry.debitAccount.name}</span>
                 <ArrowRightIcon className="h-4 w-4 text-gray-400" />
-                <span className="font-medium text-gray-800">{entry.toAccount.name}</span>
+                <span className="font-medium text-gray-800">{entry.creditAccount.name}</span>
               </div>
             </div>
             <div className="flex items-center justify-between">

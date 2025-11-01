@@ -1,4 +1,5 @@
-// components/dashboard/MakePaymentModal.tsx - Refactored with React Query
+// Updated with debit/credit terminology
+
 import { useState, useEffect } from "react";
 import {
   BanknotesIcon,
@@ -47,18 +48,15 @@ const MakePaymentModal = ({
   const [note, setNote] = useState("");
   const [toAccountId, setToAccountId] = useState("");
 
-  // React Query hooks
   const { data: agent, isLoading: agentLoading } = useAgent(agentId || "");
   const { data: allAccounts = [], isLoading: accountsLoading } = useAccounts();
   const createTransactionMutation = useCreateTransaction();
 
-  // Find the agent's account, cash account, and recipient accounts
   const agentAccount = allAccounts.find(
     (acc: Account) => acc.linkedEntityType === "agent" && acc.linkedEntityId === agentId
   );
   
   const cashAccount = allAccounts.find((acc: Account) => acc.type === "cash");
-  
   const recipientAccounts = allAccounts.filter((acc: Account) => acc.type === "recipient");
 
   const agentWithAccount: AgentWithAccount | null = agent ? {
@@ -66,7 +64,6 @@ const MakePaymentModal = ({
     account: agentAccount
   } : null;
 
-  // Reset form when modal opens
   useEffect(() => {
     if (isOpen) {
       resetForm();
@@ -98,7 +95,6 @@ const MakePaymentModal = ({
   };
 
   const handleSave = async () => {
-    // Validation checks
     if (!agentId) {
       alert("Agent information is missing.");
       return;
@@ -125,10 +121,12 @@ const MakePaymentModal = ({
     }
 
     try {
+      // UPDATED: Using debit/credit terminology
+      // Payment: Dr Recipient | Cr Cash
       const paymentData = {
-        fromAccount: cashAccount._id,
-        toAccount: toAccountId,
-        effectedAccount: agentWithAccount.account._id,
+        debitAccount: toAccountId,      // Recipient (Dr)
+        creditAccount: cashAccount._id, // Cash (Cr)
+        effectedAccount: agentWithAccount.account._id, // For clearing journal
         amount: amount,
         date: date,
         note: note,
@@ -176,7 +174,6 @@ const MakePaymentModal = ({
           onSubmit={(e) => e.preventDefault()}
           className="space-y-6"
         >
-          {/* From Agent (Read-only Input) */}
           <div className="space-y-1">
             <label className="block text-sm font-medium text-gray-700">
               From Agent
@@ -192,7 +189,6 @@ const MakePaymentModal = ({
             </div>
           </div>
 
-          {/* To Account (Recipient Selection) */}
           <div className="space-y-1">
             <label className="block text-sm font-medium text-gray-700">
               To Account (Recipient)
@@ -216,7 +212,6 @@ const MakePaymentModal = ({
             </div>
           </div>
 
-          {/* Amount */}
           <div className="space-y-1">
             <label className="block text-sm font-medium text-gray-700">
               Amount to Pay
@@ -235,7 +230,6 @@ const MakePaymentModal = ({
             </div>
           </div>
 
-          {/* Date */}
           <div className="space-y-1">
             <label className="block text-sm font-medium text-gray-700">
               Date
@@ -252,7 +246,6 @@ const MakePaymentModal = ({
             </div>
           </div>
 
-          {/* Note */}
           <div className="space-y-1">
             <label className="block text-sm font-medium text-gray-700">
               Note
