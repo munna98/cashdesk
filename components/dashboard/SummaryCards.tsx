@@ -76,34 +76,36 @@ export default function SummaryCards({
     },
   ]
 
-  return (
-    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
-      {cards.map((card, index) => (
-        <div 
-          key={index} 
-          className={`relative overflow-hidden bg-white rounded-xl shadow-md hover:shadow-lg transition-all duration-300 hover:-translate-y-1 border ${card.borderClass}`}
-        >
-          <div className="p-5">
-            <div className="flex items-start justify-between mb-4">
-              <div className={`p-3 rounded-xl ${card.bgClass}`}>
-                <card.icon className={`h-7 w-7 ${card.colorClass}`} />
+return (
+  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
+    {cards.map((card, index) => (
+      <div 
+        key={index} 
+        className={`relative overflow-hidden bg-white rounded-xl shadow-md hover:shadow-lg transition-all duration-300 hover:-translate-y-1 border ${card.borderClass}`}
+      >
+        <div className="p-5">
+          {/* First line: Icon and Title */}
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <div className={`p-2 rounded-xl ${card.bgClass}`}>
+                <card.icon className={`h-5 w-5 ${card.colorClass}`} />
               </div>
-            </div>
-            
-            <div className="space-y-1">
               <div className="text-gray-600 text-xs font-medium uppercase tracking-wide">
                 {card.title}
-              </div>
-              <div className={`text-2xl font-bold ${card.colorClass}`}>
-                ₹{card.value.toLocaleString()}
               </div>
             </div>
           </div>
           
-          {/* Decorative accent line */}
-          <div className={`absolute bottom-0 left-0 right-0 h-1 ${card.bgClass}`}></div>
+          {/* Second line: Amount */}
+          <div className={`text-2xl font-bold ${card.colorClass}`}>
+            ₹{card.value.toLocaleString()}
+          </div>
         </div>
-      ))}
-    </div>
-  )
+        
+        {/* Decorative accent line */}
+        <div className={`absolute bottom-0 left-0 right-0 h-1 ${card.bgClass}`}></div>
+      </div>
+    ))}
+  </div>
+)
 }
