@@ -1,23 +1,26 @@
 // components/dashboard/AgentCard.tsx
 import {
+  ChartBarIcon,
   BanknotesIcon,
   ArrowTrendingUpIcon,
-  ArrowTrendingDownIcon,
   CurrencyRupeeIcon,
   CalculatorIcon,
   ArrowUpTrayIcon,
   ArrowDownTrayIcon,
+  XCircleIcon,
 } from "@heroicons/react/24/outline";
 
 interface AgentProps {
-  id: string; // Add agent ID prop
+  id: string;
   name: string;
   opening: number;
   received: number;
   paid: number;
   commission: number;
-  onReceiveCash: (agentId: string, agentName: string) => void; // Callback for receive action
-  onMakePayment: (agentId: string, agentName: string) => void; // Callback for payment action
+  cancelled: number;
+  onReceiveCash: (agentId: string, agentName: string) => void;
+  onMakePayment: (agentId: string, agentName: string) => void;
+  onCancel: (agentId: string, agentName: string) => void;
 }
 
 export default function AgentCard({
@@ -27,10 +30,12 @@ export default function AgentCard({
   received,
   paid,
   commission,
+  cancelled,
   onReceiveCash,
   onMakePayment,
+  onCancel,
 }: AgentProps) {
-  const closing = opening + received - paid - commission;
+  const closing = opening + received - paid - commission + cancelled;
 
   return (
     <div className="bg-white p-5 rounded-lg shadow hover:shadow-md transition-shadow duration-300 w-full border border-gray-100 ">
@@ -42,9 +47,9 @@ export default function AgentCard({
       <div className="flex flex-col gap-2 text-sm">
         {/* Row 1: Opening */}
         <div className="flex w-full">
-          <div className="flex items-center justify-between space-x-2 p-2 rounded-md bg-blue-50 text-blue-700 flex-1">
+          <div className="flex items-center justify-between space-x-2 p-1.5 rounded-md bg-purple-50 text-purple-700 flex-1">
             <div className="flex items-center space-x-2">
-              <BanknotesIcon className="h-5 w-5 flex-shrink-0" />
+              <ChartBarIcon className="h-5 w-5 flex-shrink-0" />
               <span>Opening:</span>
             </div>
             <span className="truncate">
@@ -53,12 +58,12 @@ export default function AgentCard({
           </div>
         </div>
 
-        {/* Row 2: Tocken */}
+        {/* Row 2: Token */}
         <div className="flex w-full">
-          <div className="flex items-center justify-between space-x-2 p-2 rounded-md bg-green-50 text-green-700 flex-1">
+          <div className="flex items-center justify-between space-x-2 p-1.5 rounded-md bg-green-50 text-green-700 flex-1">
             <div className="flex items-center space-x-2">
-              <ArrowTrendingUpIcon className="h-5 w-5 flex-shrink-0" />
-              <span>Tocken:</span>
+              <BanknotesIcon className="h-5 w-5 flex-shrink-0" />
+              <span>Token:</span>
             </div>
             <span className="truncate">
               ₹{received.toLocaleString()}
@@ -68,9 +73,9 @@ export default function AgentCard({
 
         {/* Row 3: Commission */}
         <div className="flex w-full">
-          <div className="flex items-center justify-between space-x-2 p-2 rounded-md bg-yellow-50 text-yellow-700 flex-1">
+          <div className="flex items-center justify-between space-x-2 p-1.5 rounded-md bg-yellow-50 text-yellow-700 flex-1">
             <div className="flex items-center space-x-2">
-              <CalculatorIcon className="h-5 w-5 flex-shrink-0" />
+              <ArrowTrendingUpIcon className="h-5 w-5 flex-shrink-0" />
               <span>Commission:</span>
             </div>
             <span className="truncate">
@@ -81,9 +86,9 @@ export default function AgentCard({
 
         {/* Row 4: Deposit */}
         <div className="flex w-full">
-          <div className="flex items-center justify-between space-x-2 p-2 rounded-md bg-red-50 text-red-700 flex-1">
+          <div className="flex items-center justify-between space-x-2 p-1.5 rounded-md bg-red-50 text-red-700 flex-1">
             <div className="flex items-center space-x-2">
-              <ArrowTrendingDownIcon className="h-5 w-5 flex-shrink-0" />
+              <CurrencyRupeeIcon className="h-5 w-5 flex-shrink-0" />
               <span>Deposit:</span>
             </div>
             <span className="truncate">
@@ -92,11 +97,24 @@ export default function AgentCard({
           </div>
         </div>
 
+        {/* Row 5: Cancelled */}
+        <div className="flex w-full">
+          <div className="flex items-center justify-between space-x-2 p-1.5 rounded-md bg-orange-50 text-orange-700 flex-1">
+            <div className="flex items-center space-x-2">
+              <XCircleIcon className="h-5 w-5 flex-shrink-0" />
+              <span>Cancelled:</span>
+            </div>
+            <span className="truncate">
+              ₹{cancelled.toLocaleString()}
+            </span>
+          </div>
+        </div>
+
         {/* Final Row: Closing Balance */}
         <div className="flex w-full">
-          <div className="flex items-center justify-between space-x-2 p-2 rounded-md bg-gray-100 font-medium text-gray-800 flex-1">
+          <div className="flex items-center justify-between space-x-2 p-1.5 rounded-md bg-blue-50 text-blue-700 font-medium flex-1">
             <div className="flex items-center space-x-2">
-              <CurrencyRupeeIcon className="h-5 w-5 flex-shrink-0" />
+              <CalculatorIcon className="h-5 w-5 flex-shrink-0" />
               <span>Closing:</span>
             </div>
             <span className="truncate">
@@ -105,21 +123,33 @@ export default function AgentCard({
           </div>
         </div>
 
-        <div className="mt-3 flex gap-2">
-          <button
-            onClick={() => onReceiveCash(id, name)}
-            className="flex-1 flex items-center justify-center bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-md transition"
-          >
-            <ArrowDownTrayIcon className="h-5 w-5 mr-2" />
-            Get Token
-          </button>
+        <div className="mt-3 relative">
+          {/* Main Action Buttons - Compact */}
+          <div className="flex gap-2">
+            <button
+              onClick={() => onReceiveCash(id, name)}
+              className="flex-1 flex flex-col items-center justify-center bg-gradient-to-br from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-medium py-2 px-3 rounded-lg transition-all text-sm shadow-md hover:shadow-lg"
+            >
+              <ArrowDownTrayIcon className="h-4 w-4 mb-0.5" />
+              Get Token
+            </button>
 
+            <button
+              onClick={() => onMakePayment(id, name)}
+              className="flex-1 flex flex-col items-center justify-center bg-gradient-to-br from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-medium py-2 px-3 rounded-lg transition-all text-sm shadow-md hover:shadow-lg"
+            >
+              <ArrowUpTrayIcon className="h-4 w-4 mb-0.5" />
+              Make Deposit
+            </button>
+          </div>
+
+          {/* Floating Cancel Button */}
           <button
-            onClick={() => onMakePayment(id, name)}
-            className="flex-1 flex items-center justify-center bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-md transition"
+            onClick={() => onCancel(id, name)}
+            className="absolute -top-1 -right-1 flex items-center justify-center bg-white hover:bg-orange-50 text-orange-500 hover:text-orange-600 font-medium p-1.5 rounded-full transition-all text-xs border border-orange-200 shadow-md hover:shadow-lg"
+            title="Cancel"
           >
-            <ArrowUpTrayIcon className="h-5 w-5 mr-2" />
-            Make Deposit
+            <XCircleIcon className="h-3 w-3" />
           </button>
         </div>
       </div>
