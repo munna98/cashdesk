@@ -4,7 +4,7 @@ import {
   ArrowTrendingUpIcon,
   CurrencyRupeeIcon,
   CalculatorIcon,
-  ChartBarIcon,
+  BookOpenIcon,
   XCircleIcon,
 } from "@heroicons/react/24/solid"
 
@@ -29,7 +29,7 @@ export default function SummaryCards({
     {
       title: "Opening",
       value: openingBalance,
-      icon: ChartBarIcon,
+      icon: BookOpenIcon,
       colorClass: "text-purple-600",
       bgClass: "bg-purple-50",
       borderClass: "border-purple-200",

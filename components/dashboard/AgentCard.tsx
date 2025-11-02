@@ -1,6 +1,6 @@
 // components/dashboard/AgentCard.tsx
 import {
-  ChartBarIcon,
+  BookOpenIcon,
   BanknotesIcon,
   ArrowTrendingUpIcon,
   CurrencyRupeeIcon,
@@ -49,7 +49,7 @@ export default function AgentCard({
         <div className="flex w-full">
           <div className="flex items-center justify-between space-x-2 p-1.5 rounded-md bg-purple-50 text-purple-700 flex-1">
             <div className="flex items-center space-x-2">
-              <ChartBarIcon className="h-5 w-5 flex-shrink-0" />
+              <BookOpenIcon className="h-5 w-5 flex-shrink-0" />
               <span>Opening:</span>
             </div>
             <span className="truncate">
@@ -128,17 +128,17 @@ export default function AgentCard({
           <div className="flex gap-2">
             <button
               onClick={() => onReceiveCash(id, name)}
-              className="flex-1 flex flex-col items-center justify-center bg-gradient-to-br from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-medium py-2 px-3 rounded-lg transition-all text-sm shadow-md hover:shadow-lg"
+              className="flex-1 flex items-center justify-center gap-1.5 bg-gradient-to-br from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-medium py-2.5 px-3 rounded-lg transition-all text-sm shadow-md hover:shadow-lg"
             >
-              <ArrowDownTrayIcon className="h-4 w-4 mb-0.5" />
+              <ArrowDownTrayIcon className="h-4 w-4" />
               Get Token
             </button>
 
             <button
               onClick={() => onMakePayment(id, name)}
-              className="flex-1 flex flex-col items-center justify-center bg-gradient-to-br from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-medium py-2 px-3 rounded-lg transition-all text-sm shadow-md hover:shadow-lg"
+              className="flex-1 flex items-center justify-center gap-1.5 bg-gradient-to-br from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-medium py-2.5 px-3 rounded-lg transition-all text-sm shadow-md hover:shadow-lg"
             >
-              <ArrowUpTrayIcon className="h-4 w-4 mb-0.5" />
+              <ArrowUpTrayIcon className="h-4 w-4" />
               Make Deposit
             </button>
           </div>
