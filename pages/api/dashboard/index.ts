@@ -1,4 +1,4 @@
-// pages/api/dashboard/index.ts - Updated with cancellation tracking
+// pages/api/dashboard/index.ts - Updated to calculate opening from transactions
 import type { NextApiRequest, NextApiResponse } from "next";
 import dbConnect from "@/lib/mongodb";
 import Agent from "@/models/Agent";
@@ -12,7 +12,7 @@ interface AgentDashboardData {
   received: number;
   commission: number;
   paid: number;
-  cancelled: number; // NEW
+  cancelled: number;
   closing: number;
 }
 
@@ -21,7 +21,7 @@ interface DashboardSummary {
   totalReceived: number;
   totalCommission: number;
   totalPaid: number;
-  totalCancelled: number; // NEW
+  totalCancelled: number;
   totalClosingBalance: number;
 }
 
@@ -39,43 +39,35 @@ export default async function handler(
     const { date } = req.query;
     const targetDate = date ? new Date(date as string) : new Date();
     
-    // Set time boundaries for the target date
     const startOfDay = new Date(targetDate);
     startOfDay.setHours(0, 0, 0, 0);
     
     const endOfDay = new Date(targetDate);
     endOfDay.setHours(23, 59, 59, 999);
 
-    // Get all agents
     const agents = await Agent.find({});
-    
-    // Get all accounts
     const accounts = await Account.find({});
 
-    // Get all transactions (for opening balance calculation)
+    // ✅ Get all transactions BEFORE the target date (for opening balance)
     const allTransactions = await Transaction.find({
       date: { $lt: startOfDay }
     }).select('debitAccount creditAccount amount type note');
 
-    // Get today's transactions
     const todayTransactions = await Transaction.find({
       date: { $gte: startOfDay, $lte: endOfDay }
     })
     .populate('debitAccount', 'name type')
     .populate('creditAccount', 'name type');
 
-    // Initialize agent data array
     const agentDashboardData: AgentDashboardData[] = [];
     
     let totalOpeningBalance = 0;
     let totalReceived = 0;
     let totalCommission = 0;
     let totalPaid = 0;
-    let totalCancelled = 0; // NEW
+    let totalCancelled = 0;
 
-    // Process each agent
     for (const agent of agents) {
-      // Find agent's account
       const agentAccount = accounts.find(
         (acc: any) => 
           acc.type === "agent" && 
@@ -84,7 +76,7 @@ export default async function handler(
 
       if (!agentAccount) continue;
 
-      // Calculate opening balance (before today)
+      // ✅ Calculate opening balance: stored opening + transactions before target date
       let opening = agentAccount.openingBalance || 0;
       
       allTransactions.forEach((txn: any) => {
@@ -92,9 +84,9 @@ export default async function handler(
         const isCredited = txn.creditAccount?.toString() === agentAccount._id.toString();
 
         if (isDebited) {
-          opening -= txn.amount;  // Debit reduces agent balance (they owe less)
+          opening -= txn.amount;  // Debit reduces credit balance (agent owes less)
         } else if (isCredited) {
-          opening += txn.amount;  // Credit increases agent balance (they owe more)
+          opening += txn.amount;  // Credit increases credit balance (agent owes more)
         }
       });
 
@@ -120,7 +112,6 @@ export default async function handler(
           t.creditAccount?.type === "recipient"
       );
 
-      // NEW: Filter cancellations (payments with "Cancelled" in note to agent)
       const agentCancellations = todayTransactions.filter(
         (t: any) => 
           t.type === "payment" &&
@@ -131,7 +122,7 @@ export default async function handler(
       const received = agentReceipts.reduce((sum: number, r: any) => sum + r.amount, 0);
       const commission = agentCommissions.reduce((sum: number, c: any) => sum + c.amount, 0);
       const paid = agentPayments.reduce((sum: number, p: any) => sum + p.amount, 0);
-      const cancelled = agentCancellations.reduce((sum: number, c: any) => sum + c.amount, 0); // NEW
+      const cancelled = agentCancellations.reduce((sum: number, c: any) => sum + c.amount, 0);
 
       const closing = opening + received - commission - paid + cancelled;
 
@@ -142,19 +133,17 @@ export default async function handler(
         received,
         commission,
         paid,
-        cancelled, // NEW
+        cancelled,
         closing
       });
 
-      // Add to totals
       totalOpeningBalance += opening;
       totalReceived += received;
       totalCommission += commission;
       totalPaid += paid;
-      totalCancelled += cancelled; // NEW
+      totalCancelled += cancelled;
     }
 
-    // Calculate total closing balance
     const totalClosingBalance = totalOpeningBalance + totalReceived - totalCommission - totalPaid + totalCancelled;
 
     const summary: DashboardSummary = {
@@ -162,7 +151,7 @@ export default async function handler(
       totalReceived,
       totalCommission,
       totalPaid,
-      totalCancelled, // NEW
+      totalCancelled,
       totalClosingBalance
     };
 

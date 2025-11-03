@@ -18,7 +18,7 @@ const AccountSchema = new mongoose.Schema(
         "income",
         "employee",
         "expense",
-        "equity", // ✅ For Opening Balance & Capital accounts
+        "equity", 
       ],
       required: true,
     },
@@ -77,5 +77,4 @@ export async function setupDefaultAccounts() {
   }
 }
 
-/* ----------------------  EXPORT MODEL  ---------------------- */
 export default Account;

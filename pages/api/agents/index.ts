@@ -1,15 +1,30 @@
-// pages/api/agents/index.ts - FIXED
+// pages/api/agents/index.ts - Updated with Opening Balance Journal
 import type { NextApiRequest, NextApiResponse } from "next";
 import dbConnect from "@/lib/mongodb";
 import Agent from "@/models/Agent";
 import Account from "@/models/Account";
 import Transaction from "@/models/Transaction";
+import Counter from "@/models/Counter";
+
+async function getNextSequence(name: string) {
+  const counter = await Counter.findByIdAndUpdate(
+    { _id: name },
+    { $inc: { seq: 1 } },
+    { new: true, upsert: true }
+  );
+  return counter.seq;
+}
+
+function generateTransactionNumber(type: string, seq: number) {
+  const year = new Date().getFullYear();
+  let prefix = "JNL";
+  return `${prefix}-${year}-${seq.toString().padStart(5, "0")}`;
+}
 
 async function calculateAccountBalance(accountId: string) {
   const account = await Account.findById(accountId);
   if (!account) return 0;
 
-  // Get all transactions involving this account
   const transactions = await Transaction.find({
     $or: [
       { debitAccount: accountId },
@@ -17,19 +32,15 @@ async function calculateAccountBalance(accountId: string) {
     ]
   });
 
-  // Start with opening balance (negative for agent accounts)
-  let balance = account.openingBalance || 0;
+  let balance = 0;
 
-  // Process all transactions
   transactions.forEach((txn) => {
     const isDebited = txn.debitAccount.toString() === accountId;
     const isCredited = txn.creditAccount.toString() === accountId;
 
     if (isDebited) {
-      // Account is debited - reduces the credit balance (agent owes less)
       balance += txn.amount;
     } else if (isCredited) {
-      // Account is credited - increases the credit balance (agent owes more)
       balance -= txn.amount;
     }
   });
@@ -48,20 +59,17 @@ export default async function handler(
       try {
         const agents = await Agent.find({});
         
-        // Get all agent accounts
         const agentIds = agents.map(a => a._id);
         const accounts = await Account.find({
           linkedEntityType: 'agent',
           linkedEntityId: { $in: agentIds }
         });
         
-        // Map accounts to agents
         const accountMap = new Map();
         accounts.forEach(acc => {
           accountMap.set(acc.linkedEntityId.toString(), acc);
         });
         
-        // Calculate balance for each agent
         const agentsWithBalance = await Promise.all(
           agents.map(async (agent) => {
             const account = accountMap.get(agent._id.toString());
@@ -90,23 +98,52 @@ export default async function handler(
         // Create the agent first
         const agent = await Agent.create(agentData);
         
-        // Create the associated account with NEGATIVE opening balance (credit balance)
-        // Because agents typically have credit balances (they owe us money)
+        // Create the associated account WITH opening balance stored for reference
         const account = await Account.create({
           name: req.body.name,
           type: 'agent',
           linkedEntityType: 'agent',
           linkedEntityId: agent._id,
-          openingBalance: -Number(openingBalance), // Negative = they owe us
-          balance: -Number(openingBalance) // Will be recalculated
+          openingBalance: openingBalance, // ✅ Store for display purposes
+          balance: 0 // Will be calculated from transactions
         });
+        
+        // ✅ NEW: If opening balance exists, create journal entry
+        if (openingBalance && openingBalance !== 0) {
+          const openingBalanceAccount = await Account.findOne({
+            name: "Opening Balance",
+            type: "equity"
+          });
+
+          if (!openingBalanceAccount) {
+            await Agent.findByIdAndDelete(agent._id);
+            await Account.findByIdAndDelete(account._id);
+            return res.status(400).json({
+              error: "Opening Balance account not found. Please contact support."
+            });
+          }
+
+          const journalSeq = await getNextSequence("journalentry");
+          const journalNumber = generateTransactionNumber("journalentry", journalSeq);
+
+          // Create Journal Entry: Dr Opening Balance | Cr Agent
+          // (Since agent balance is credit normal - they owe us)
+          await Transaction.create({
+            transactionNumber: journalNumber,
+            debitAccount: openingBalanceAccount._id,  // Opening Balance (Dr)
+            creditAccount: account._id,                // Agent Account (Cr)
+            amount: Math.abs(openingBalance),
+            date: new Date(),
+            note: `Opening balance for ${req.body.name}`,
+            type: "journalentry",
+          });
+        }
         
         return res.status(201).json({
           agent,
           account
         });
       } catch (err: any) {
-        // Cleanup on error
         if (req.body._id) {
           try {
             await Agent.findByIdAndDelete(req.body._id);
