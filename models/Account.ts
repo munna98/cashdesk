@@ -1,60 +1,81 @@
 import mongoose from "mongoose";
 
-const AccountSchema = new mongoose.Schema({
-  name: { type: String, required: true },
-  type: {
-    type: String,
-    enum: ['agent', 'recipient', 'cash', 'income', 'employee', 'expense'],
-    required: true
+/* ----------------------  SCHEMA DEFINITION  ---------------------- */
+const AccountSchema = new mongoose.Schema(
+  {
+    name: {
+      type: String,
+      required: true,
+      trim: true,
+      unique: true,
+    },
+    type: {
+      type: String,
+      enum: [
+        "agent",
+        "recipient",
+        "cash",
+        "income",
+        "employee",
+        "expense",
+        "equity", // ✅ For Opening Balance & Capital accounts
+      ],
+      required: true,
+    },
+    linkedEntityType: {
+      type: String,
+      enum: ["agent", "recipient", "employee", null],
+      default: null,
+    },
+    linkedEntityId: {
+      type: mongoose.Schema.Types.ObjectId,
+      default: null,
+    },
+    balance: {
+      type: Number,
+      default: 0,
+    },
+    openingBalance: {
+      type: Number,
+      default: 0,
+    },
+    isSystem: {
+      type: Boolean,
+      default: false, // ✅ Helps you identify system-created accounts
+    },
   },
-  linkedEntityType: {
-    type: String,
-    enum: ['agent', 'recipient', 'employee', null],
-    default: null
-  },
-  linkedEntityId: {
-    type: mongoose.Schema.Types.ObjectId,
-    default: null
-  },
-  balance: {
-    type: Number, 
-    default: 0
-  },
-  openingBalance: {
-    type: Number, 
-    default: 0
-  }
-}, { timestamps: true });
+  { timestamps: true }
+);
 
-const Account = mongoose.models.Account || mongoose.model("Account", AccountSchema);
+/* ----------------------  MODEL CREATION  ---------------------- */
+const Account =
+  mongoose.models.Account || mongoose.model("Account", AccountSchema);
 
-// ✅ Auto-create default accounts (Cash & Commission)
-(async () => {
+/* ----------------------  DEFAULT ACCOUNT SETUP  ---------------------- */
+export async function setupDefaultAccounts() {
   try {
-    if (mongoose.connection.readyState === 1) {
-      // Create Cash Account if not exists
-      const cash = await Account.findOne({ type: "cash" });
-      if (!cash) {
-        await Account.create({
-          name: "Cash Account",
-          type: "cash"
-        });
-        console.log("✅ Cash Account created");
-      }
+    if (mongoose.connection.readyState !== 1) {
+      console.warn("⚠️ Mongoose not connected. Default accounts not created.");
+      return;
+    }
 
-      // Create Commission Account under Income if not exists
-      const commission = await Account.findOne({ name: "Commission", type: "income" });
-      if (!commission) {
-        await Account.create({
-          name: "Commission",
-          type: "income"
-        });
-        console.log("✅ Commission Account created");
+    const defaults = [
+      { name: "Cash Account", type: "cash", isSystem: true },
+      { name: "Commission", type: "income", isSystem: true },
+      { name: "Opening Balance", type: "equity", isSystem: true },
+    ];
+
+    for (const acc of defaults) {
+      const exists = await Account.findOne({ name: acc.name, type: acc.type });
+      if (!exists) {
+        await Account.create(acc);
+        console.log(`✅ Created system account: ${acc.name}`);
       }
     }
   } catch (err) {
-    console.error("Error setting up default accounts:", err);
+    console.error("❌ Error setting up default accounts:", err);
   }
-})();
+}
 
+/* ----------------------  EXPORT MODEL  ---------------------- */
 export default Account;
