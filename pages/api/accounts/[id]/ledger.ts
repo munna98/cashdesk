@@ -1,4 +1,4 @@
-// pages/api/accounts/[id]/ledger.ts - Updated with debit/credit terminology
+// pages/api/accounts/[id]/ledger.ts - FIXED VERSION
 import dbConnect from "@/lib/mongodb";
 import Transaction from "@/models/Transaction";
 import Account from "@/models/Account";
@@ -21,9 +21,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         if (startDate) dateFilter.$gte = new Date(startDate as string);
         if (endDate) dateFilter.$lte = new Date(endDate as string);
 
-        // 3️⃣ Build query - account appears in either debit or credit side
+        // 3️⃣ Build query - EXCLUDE opening balance journals
         const transactionsQuery = {
             $or: [{ debitAccount: id }, { creditAccount: id }],
+            // 🔥 CRITICAL: Exclude opening balance journals from ledger
+            note: { $not: { $regex: /^Opening balance for/i } },
             ...(Object.keys(dateFilter).length > 0 && { date: dateFilter }),
         };
 
@@ -32,30 +34,31 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             .populate("debitAccount", "name type")
             .populate("creditAccount", "name type");
 
-        // 4️⃣ Determine account nature (Asset/Expense = Debit normal, Liability/Income = Credit normal)
-        const debitNormalTypes = ["asset", "expense", "cash", "agent"];
+        // 4️⃣ Determine account nature
+        const debitNormalTypes = ["asset", "expense", "cash", "recipient"];
         const isDebitNormal = debitNormalTypes.includes(account.type);
         
-        // 5️⃣ Calculate opening balance
+        // 5️⃣ Calculate opening balance (EXCLUDING opening journal)
         let openingBalance = account.openingBalance || 0;
 
         // Apply correct sign based on account nature
         if (!isDebitNormal) {
-            openingBalance = -openingBalance; // Liability/Income show as negative initially
+            openingBalance = -openingBalance; // Credit normal accounts
         }
 
+        // If date filter is applied, calculate opening from prior transactions
+        // (ALSO excluding opening balance journals)
         if (startDate) {
             const priorTxns = await Transaction.find({
                 $or: [{ debitAccount: id }, { creditAccount: id }],
                 date: { $lt: new Date(startDate as string) },
+                note: { $not: { $regex: /^Opening balance for/i } }, // 🔥 Also exclude here
             });
 
             openingBalance = priorTxns.reduce((balance, txn) => {
                 const isDebited = txn.debitAccount.toString() === id;
                 const amount = txn.amount;
 
-                // Debit increases asset/expense, decreases liability/income
-                // Credit decreases asset/expense, increases liability/income
                 if (isDebited) {
                     return balance + (isDebitNormal ? amount : -amount);
                 } else {
@@ -73,10 +76,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             // Calculate balance change
             let balanceChange: number;
             if (isDebited) {
-                // Account is debited
                 balanceChange = isDebitNormal ? amount : -amount;
             } else {
-                // Account is credited
                 balanceChange = isDebitNormal ? -amount : amount;
             }
             
@@ -86,7 +87,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             const entryDebit = isDebited ? amount : 0;
             const entryCredit = !isDebited ? amount : 0;
 
-            // Get counterparty (the other account)
+            // Get counterparty
             const counterparty = isDebited 
                 ? txn.creditAccount.name 
                 : txn.debitAccount.name;
@@ -110,7 +111,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         const response = {
             accountName: account.name,
             accountType: account.type,
-            isDebitNormal, // Send this to help frontend display
+            isDebitNormal,
             period: {
                 startDate: startDate || "All time",
                 endDate: endDate || "Present",
