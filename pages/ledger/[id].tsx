@@ -11,11 +11,11 @@ type Transaction = {
   transactionNumber: string;
   note: string;
   type: "receipt" | "payment" | "journalentry";
-  debitAccount: {    // UPDATED
+  debitAccount: {
     _id: string;
     name: string;
   };
-  creditAccount: {   // UPDATED
+  creditAccount: {
     _id: string;
     name: string;
   };
@@ -90,44 +90,27 @@ export default function LedgerPage() {
 
   return (
     <div className="max-w-6xl mx-auto p-4">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-semibold">Account Ledger</h1>
-        <button
-          onClick={() => router.back()}
-          className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200"
-        >
-          Back
-        </button>
-      </div>
-
-      {ledgerData && (
-        <div className="bg-white rounded-lg shadow p-4 mb-6">
-          <h2 className="text-xl font-medium mb-2">{ledgerData.accountName}</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <p className="text-sm text-gray-600">Account Type</p>
-              <p className="font-medium">{ledgerData.accountType}</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-600">Opening Balance</p>
-              <p className="font-medium">
-                {getBalanceDisplay(ledgerData.openingBalance, ledgerData.accountType).display}
-              </p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-600">Closing Balance</p>
-              <p
-                className={`font-medium ${getBalanceDisplay(ledgerData.closingBalance, ledgerData.accountType).colorClass}`}
-              >
-                {getBalanceDisplay(ledgerData.closingBalance, ledgerData.accountType).display}
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-
       <div className="bg-white rounded-lg shadow p-4 mb-6">
-        <form onSubmit={handleFilter} className="flex flex-wrap gap-4">
+        <div className="flex flex-wrap justify-between items-start gap-4 mb-4">
+          <div>
+            <h1 className="text-2xl font-semibold mb-1">Account Ledger</h1>
+            {ledgerData && (
+              <div className="flex items-center gap-4 text-sm text-gray-600">
+                <span className="font-medium text-gray-900">{ledgerData.accountName}</span>
+                <span>•</span>
+                <span className="capitalize">{ledgerData.accountType}</span>
+              </div>
+            )}
+          </div>
+          <button
+            onClick={() => router.back()}
+            className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200"
+          >
+            Back
+          </button>
+        </div>
+
+        <form onSubmit={handleFilter} className="flex flex-wrap gap-4 items-end">
           <div>
             <label className="block text-sm text-gray-600 mb-1">Start Date</label>
             <input
@@ -146,14 +129,12 @@ export default function LedgerPage() {
               className="border rounded-md px-3 py-2 text-sm"
             />
           </div>
-          <div className="self-end">
-            <button
-              type="submit"
-              className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 text-sm"
-            >
-              Apply Filter
-            </button>
-          </div>
+          <button
+            type="submit"
+            className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 text-sm"
+          >
+            Apply Filter
+          </button>
         </form>
       </div>
 
@@ -174,6 +155,17 @@ export default function LedgerPage() {
               </tr>
             </thead>
             <tbody>
+              <tr className="bg-blue-50 font-medium border-t-2 border-blue-200">
+                <td colSpan={4} className="px-4 py-2">
+                  Opening Balance
+                </td>
+                <td className="px-4 py-2 text-right">-</td>
+                <td className="px-4 py-2 text-right">-</td>
+                <td className="px-4 py-2 text-right">
+                  {getBalanceDisplay(ledgerData.openingBalance, ledgerData.accountType).display}
+                </td>
+              </tr>
+
               {ledgerData.entries.map((txn) => {
                 const balanceDisplay = getBalanceDisplay(txn.balance, ledgerData.accountType);
 
@@ -201,11 +193,10 @@ export default function LedgerPage() {
                     </td>
                   </tr>
                 );
-              }
-              )}
+              })}
             </tbody>
             <tfoot className="bg-gray-50 font-medium">
-              <tr>
+              <tr className="border-t-2">
                 <td colSpan={4} className="px-4 py-2 text-right">
                   Total:
                 </td>
@@ -221,6 +212,14 @@ export default function LedgerPage() {
                     .reduce((sum, txn) => sum + txn.credit, 0)
                     .toLocaleString()}
                 </td>
+                <td className="px-4 py-2 text-right">-</td>
+              </tr>
+              <tr className="bg-blue-50 border-t-2 border-blue-200">
+                <td colSpan={4} className="px-4 py-2">
+                  Closing Balance
+                </td>
+                <td className="px-4 py-2 text-right">-</td>
+                <td className="px-4 py-2 text-right">-</td>
                 <td
                   className={`px-4 py-2 text-right ${getBalanceDisplay(ledgerData.closingBalance, ledgerData.accountType).colorClass
                     }`}
