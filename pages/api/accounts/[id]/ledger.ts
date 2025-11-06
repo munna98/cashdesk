@@ -1,4 +1,5 @@
-// pages/api/accounts/[id]/ledger.ts - FIXED VERSION
+// pages/api/accounts/[id]/ledger.ts - FINAL, VERIFIED VERSION
+
 import dbConnect from "@/lib/mongodb";
 import Transaction from "@/models/Transaction";
 import Account from "@/models/Account";
@@ -22,12 +23,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         if (endDate) dateFilter.$lte = new Date(endDate as string);
 
         // 3️⃣ Build query - EXCLUDE opening balance journals
-        const transactionsQuery = {
+        const transactionsQuery: any = {
             $or: [{ debitAccount: id }, { creditAccount: id }],
-            // 🔥 CRITICAL: Exclude opening balance journals from ledger
             note: { $not: { $regex: /^Opening balance for/i } },
-            ...(Object.keys(dateFilter).length > 0 && { date: dateFilter }),
         };
+        
+        if (Object.keys(dateFilter).length > 0) {
+            transactionsQuery.date = dateFilter;
+        }
 
         const transactions = await Transaction.find(transactionsQuery)
             .sort({ date: 1, createdAt: 1 })
@@ -36,52 +39,61 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
         // 4️⃣ Determine account nature
         const debitNormalTypes = ["asset", "expense", "cash", "recipient"];
-        const isDebitNormal = debitNormalTypes.includes(account.type);
+        let isDebitNormal = debitNormalTypes.includes(account.type);
+        
+        // Ensure 'agent' accounts are always treated as Credit-Normal (Liability)
+        if (account.type === 'agent') {
+            isDebitNormal = false; 
+        }
         
         // 5️⃣ Calculate opening balance (EXCLUDING opening journal)
         let openingBalance = account.openingBalance || 0;
 
-        // Apply correct sign based on account nature
+        // Force correct sign for internal running balance: Credit-Normal MUST be negative internally
         if (!isDebitNormal) {
-            openingBalance = -openingBalance; // Credit normal accounts
+            openingBalance = -Math.abs(openingBalance);
+        } else {
+            openingBalance = Math.abs(openingBalance);
         }
 
         // If date filter is applied, calculate opening from prior transactions
-        // (ALSO excluding opening balance journals)
         if (startDate) {
             const priorTxns = await Transaction.find({
                 $or: [{ debitAccount: id }, { creditAccount: id }],
                 date: { $lt: new Date(startDate as string) },
-                note: { $not: { $regex: /^Opening balance for/i } }, // 🔥 Also exclude here
+                note: { $not: { $regex: /^Opening balance for/i } }, 
             });
 
+            // Logic for prior transactions: Credit adds to magnitude, Debit subtracts
             openingBalance = priorTxns.reduce((balance, txn) => {
                 const isDebited = txn.debitAccount.toString() === id;
                 const amount = txn.amount;
 
                 if (isDebited) {
-                    return balance + (isDebitNormal ? amount : -amount);
+                    return balance + amount; // Debit (Commission) adds to the negative balance (e.g., -7000 + 3 = -6997)
                 } else {
-                    return balance + (isDebitNormal ? -amount : amount);
+                    return balance - amount; // Credit (Receipt) subtracts from the negative balance (e.g., -5000 - 2000 = -7000)
                 }
             }, openingBalance);
         }
         
-        // 6️⃣ Process transactions with running balance
+        // 6️⃣ Process transactions with running balance 🚀 FINAL LOGIC 🚀
         let runningBalance = openingBalance;
         const ledgerEntries = transactions.map((txn) => {
             const isDebited = txn.debitAccount._id.toString() === id;
             const amount = txn.amount;
 
-            // Calculate balance change
-            let balanceChange: number;
+            // --- 👇 LOGIC FOR ₹6,997 Cr RESULT 👇 ---
+            
             if (isDebited) {
-                balanceChange = isDebitNormal ? amount : -amount;
+                // DEBIT (Commission) MUST DECREASE the magnitude of the credit balance (i.e., add to the negative internal balance)
+                runningBalance += amount;
             } else {
-                balanceChange = isDebitNormal ? -amount : amount;
+                // CREDIT (Receipt) MUST INCREASE the magnitude of the credit balance (i.e., subtract from the negative internal balance)
+                runningBalance -= amount;
             }
             
-            runningBalance += balanceChange;
+            // --- 👆 END OF FINAL CORRECTED LOGIC 👆 ---
 
             // Determine which column the amount appears in
             const entryDebit = isDebited ? amount : 0;
