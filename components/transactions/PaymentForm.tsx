@@ -123,7 +123,7 @@ export default function PaymentForm({ onPaymentSaved }: PaymentFormProps) {
             {savedPayment.amount.toFixed(2)} has been recorded.
             {selectedAccountType === "recipient" && (
               <span className="block mt-1">
-                ✓ Agent clearing journal entry created
+                Agent clearing journal created
               </span>
             )}
           </p>

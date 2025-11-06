@@ -150,11 +150,6 @@ export default function JournalEntryForm({ onJournalSaved }: JournalEntryFormPro
           </div>
         </div>
 
-        {/* Arrow Icon */}
-        <div className="flex justify-center">
-          <ArrowRightIcon className="h-6 w-6 text-gray-400" />
-        </div>
-
         {/* Credit Account */}
         <div className="space-y-1">
           <label className="block text-sm font-medium text-gray-700">

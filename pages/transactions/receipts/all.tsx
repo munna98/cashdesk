@@ -14,11 +14,9 @@ type Receipt = {
   date: string;
   note: string;
   debitAccount: {   // UPDATED: was fromAccount
-    _id: string;
     name: string;
   };
   creditAccount: {  // UPDATED: was toAccount
-    _id: string;
     name: string;
   };
 };
@@ -30,6 +28,7 @@ export default function AllReceiptsPage() {
   // Use React Query hooks
   const { data: receipts = [], isLoading } = useReceipts();
   const deleteTransactionMutation = useDeleteTransaction();
+console.log(receipts[0]);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -121,7 +120,7 @@ export default function AllReceiptsPage() {
               {receipts.map((receipt: Receipt) => (
                 <tr key={receipt._id} className="hover:bg-gray-50 transition-colors duration-150">
                   <td className="px-4 py-4 whitespace-nowrap font-medium text-gray-900">
-                    {receipt.creditAccount?.name || "Unknown"}
+                    {receipt.creditAccount?.name|| "Unknown"} 
                   </td>
                   <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
                     {receipt.transactionNumber}

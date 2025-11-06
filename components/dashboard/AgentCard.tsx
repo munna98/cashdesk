@@ -1,4 +1,5 @@
 // components/dashboard/AgentCard.tsx
+import { useRef } from "react";
 import {
   BookOpenIcon,
   BanknotesIcon,
@@ -8,8 +9,9 @@ import {
   ArrowUpTrayIcon,
   ArrowDownTrayIcon,
   XCircleIcon,
+  ShareIcon,
 } from "@heroicons/react/24/outline";
-
+import { shareAgentSummaryOnWhatsApp } from "@/utils/shareAgentSummaryOnWhatsApp";
 interface AgentProps {
   id: string;
   name: string;
@@ -37,9 +39,30 @@ export default function AgentCard({
 }: AgentProps) {
   const closing = opening + received - paid - commission + cancelled;
 
+  const handleWhatsAppShare = () => {
+    shareAgentSummaryOnWhatsApp({
+      name,
+      opening,
+      received,
+      paid,
+      commission,
+      cancelled,
+      closing,
+    });
+  };
+
   return (
-    <div className="bg-white p-5 rounded-lg shadow hover:shadow-md transition-shadow duration-300 w-full border border-gray-100 ">
-      <h2 className="text-lg font-semibold text-gray-800 mb-3 flex items-center">
+    <div className="bg-white p-5 rounded-lg shadow hover:shadow-md transition-shadow duration-300 w-full border border-gray-100 relative">
+      {/* Share Icon - Top Right Corner */}
+      <button
+        onClick={handleWhatsAppShare}
+        className="absolute top-4 right-4 p-2 rounded-full hover:bg-green-50 transition-colors group"
+        title="Share on WhatsApp"
+      >
+        <ShareIcon className="h-4 w-4 text-gray-400 group-hover:text-green-500 transition-colors" />
+      </button>
+
+      <h2 className="text-lg font-semibold text-gray-800 mb-3 flex items-center pr-10">
         <span className="inline-block w-2 h-6 bg-blue-500 rounded-sm mr-2"></span>
         {name}
       </h2>
@@ -50,7 +73,7 @@ export default function AgentCard({
           <div className="flex items-center justify-between space-x-2 p-1.5 rounded-md bg-purple-50 text-purple-700 flex-1">
             <div className="flex items-center space-x-2">
               <BookOpenIcon className="h-5 w-5 flex-shrink-0" />
-              <span>Opening:</span>
+              <span>Opening Balance:</span>
             </div>
             <span className="truncate">
               ₹{opening.toLocaleString()}
@@ -115,7 +138,7 @@ export default function AgentCard({
           <div className="flex items-center justify-between space-x-2 p-1.5 rounded-md bg-blue-50 text-blue-700 font-medium flex-1">
             <div className="flex items-center space-x-2">
               <CalculatorIcon className="h-5 w-5 flex-shrink-0" />
-              <span>Closing:</span>
+              <span>Closing Balance:</span>
             </div>
             <span className="truncate">
               ₹{closing.toLocaleString()}
