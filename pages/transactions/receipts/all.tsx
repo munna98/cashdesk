@@ -13,12 +13,7 @@ type Receipt = {
   commissionAmount?: number;
   date: string;
   note: string;
-  debitAccount: {   // UPDATED: was fromAccount
-    _id: string;
-    name: string;
-  };
-  creditAccount: {  // UPDATED: was toAccount
-    _id: string;
+  account: { 
     name: string;
   };
 };
@@ -31,6 +26,7 @@ export default function AllReceiptsPage() {
   const { data: receipts = [], isLoading } = useReceipts();
   
   const deleteTransactionMutation = useDeleteTransaction();
+
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -122,7 +118,7 @@ export default function AllReceiptsPage() {
               {receipts.map((receipt: Receipt) => (
                 <tr key={receipt._id} className="hover:bg-gray-50 transition-colors duration-150">
                   <td className="px-4 py-4 whitespace-nowrap font-medium text-gray-900">
-                    {receipt.creditAccount?.name || "Unknown"}
+                    {receipt.account?.name|| "Unknown"} 
                   </td>
                   <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
                     {receipt.transactionNumber}
