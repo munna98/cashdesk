@@ -162,7 +162,7 @@ const CancelModal = ({
 
         <div className="mb-4 p-3 bg-orange-50 border border-orange-200 rounded text-orange-800">
           <p className="text-sm">
-            <strong>Note:</strong> This will reverse a payment made to this agent. 
+            <strong>Note:</strong> This will reverse a payment made from this agent. 
             The amount will be deducted from their deposit and returned to cash.
           </p>
         </div>

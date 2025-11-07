@@ -24,7 +24,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       account: {
         name: t.creditAccount?.name || "Unknown", // Updated: from fromAccount to creditAccount
       },
-    }));
+    })); 
 
     res.status(200).json(formatted);
   } catch (err: any) {

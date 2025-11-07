@@ -13,10 +13,7 @@ type Receipt = {
   commissionAmount?: number;
   date: string;
   note: string;
-  debitAccount: {   // UPDATED: was fromAccount
-    name: string;
-  };
-  creditAccount: {  // UPDATED: was toAccount
+  account: { 
     name: string;
   };
 };
@@ -27,8 +24,9 @@ export default function AllReceiptsPage() {
 
   // Use React Query hooks
   const { data: receipts = [], isLoading } = useReceipts();
+  
   const deleteTransactionMutation = useDeleteTransaction();
-console.log(receipts[0]);
+
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -120,7 +118,7 @@ console.log(receipts[0]);
               {receipts.map((receipt: Receipt) => (
                 <tr key={receipt._id} className="hover:bg-gray-50 transition-colors duration-150">
                   <td className="px-4 py-4 whitespace-nowrap font-medium text-gray-900">
-                    {receipt.creditAccount?.name|| "Unknown"} 
+                    {receipt.account?.name|| "Unknown"} 
                   </td>
                   <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-500">
                     {receipt.transactionNumber}
@@ -189,7 +187,7 @@ console.log(receipts[0]);
             >
               <div className="px-4 py-3 bg-gray-50 flex justify-between items-center border-b border-gray-200">
                 <h3 className="font-medium text-gray-900 truncate">
-                  {receipt.creditAccount?.name || "Unknown"}
+                  {receipt.account?.name || "Unknown"}
                 </h3>
                 <div className="relative menu-container">
                   <button

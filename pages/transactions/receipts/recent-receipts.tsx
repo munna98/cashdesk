@@ -57,7 +57,7 @@ export default function RecentReceipts({ refreshTrigger }: { refreshTrigger: num
         {receipts.map((receipt) => (
           <li
             key={receipt._id}
-            className="flex items-center justify-between p-4 bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow transition"
+            className="flex items-center justify-between p-3 bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow transition"
           >
             <div>
               <div className="font-medium text-gray-800">{receipt.account.name}</div>

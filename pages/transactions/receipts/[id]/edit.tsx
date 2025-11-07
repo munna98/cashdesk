@@ -2,77 +2,105 @@
 import Layout from "@/components/layout/Layout";
 import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
-import axios from "axios";
 import {
   BanknotesIcon,
   CalendarIcon,
   UserCircleIcon,
   PencilSquareIcon,
 } from "@heroicons/react/24/outline";
+import { useQuery } from "@tanstack/react-query";
+import axios from "axios";
+import { useUpdateTransaction, QUERY_KEYS } from "@/hooks/queries/useAgents";
 
 interface AgentAccount {
   _id: string;
   name: string;
 }
 
+interface Transaction {
+  _id: string;
+  creditAccount: {
+    _id: string;
+  };
+  debitAccount: {
+    _id: string;
+  };
+  amount: number;
+  date: string;
+  note?: string;
+  type: string;
+}
+
 export default function EditReceiptPage() {
   const router = useRouter();
   const { id } = router.query;
+  const transactionId = id as string;
 
-  const [agentAccounts, setAgentAccounts] = useState<AgentAccount[]>([]);
-  const [creditAccount, setCreditAccount] = useState(""); // Updated: from fromAccount to creditAccount
+  const [creditAccount, setCreditAccount] = useState("");
   const [amount, setAmount] = useState("");
   const [date, setDate] = useState("");
   const [note, setNote] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [cashAccountId, setCashAccountId] = useState(""); // This will be debitAccount for receipts
 
+  // Fetch transaction details
+  const { data: transaction, isLoading: isLoadingTransaction } = useQuery<Transaction>({
+    queryKey: ['transaction', transactionId],
+    queryFn: async () => {
+      const { data } = await axios.get(`/api/transactions/${transactionId}`);
+      return data;
+    },
+    enabled: !!transactionId,
+  });
+
+  // Fetch agent accounts
+  const { data: agentAccounts = [], isLoading: isLoadingAgents } = useQuery<AgentAccount[]>({
+    queryKey: [...QUERY_KEYS.accounts, { type: 'agent' }],
+    queryFn: async () => {
+      const { data } = await axios.get("/api/accounts?type=agent");
+      return data;
+    },
+  });
+
+  // Fetch cash account
+  const { data: cashAccounts = [], isLoading: isLoadingCash } = useQuery<AgentAccount[]>({
+    queryKey: [...QUERY_KEYS.accounts, { type: 'cash' }],
+    queryFn: async () => {
+      const { data } = await axios.get("/api/accounts?type=cash");
+      return data;
+    },
+  });
+
+  // Update mutation
+  const updateTransaction = useUpdateTransaction();
+
+  // Populate form when transaction data loads
   useEffect(() => {
-    if (!id) return;
-
-    const fetchData = async () => {
-      try {
-        const [txnRes, agentAccountsRes, cashAccountsRes] = await Promise.all([
-          axios.get(`/api/transactions/${id}`),
-          axios.get("/api/accounts?type=agent"),
-          axios.get("/api/accounts?type=cash"),
-        ]);
-
-        const txn = txnRes.data;
-        // Updated: For receipts, creditAccount is the Agent account
-        setCreditAccount(txn.creditAccount._id); // Updated: from fromAccount to creditAccount
-        setAmount(txn.amount.toString());
-        setDate(txn.date.split("T")[0]);
-        setNote(txn.note || "");
-        setAgentAccounts(agentAccountsRes.data);
-
-        if (cashAccountsRes.data.length > 0) {
-          setCashAccountId(cashAccountsRes.data[0]._id);
-        } else {
-          alert("No cash account found.");
-        }
-      } catch (error) {
-        console.error("Error loading data:", error);
-        alert("Failed to load receipt");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, [id]);
+    if (transaction) {
+      setCreditAccount(transaction.creditAccount._id);
+      setAmount(transaction.amount.toString());
+      setDate(transaction.date.split("T")[0]);
+      setNote(transaction.note || "");
+    }
+  }, [transaction]);
 
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    if (!cashAccounts[0]?._id) {
+      alert("No cash account found.");
+      return;
+    }
+
     try {
-      await axios.put(`/api/transactions/${id}`, {
-        debitAccount: cashAccountId,    // Updated: Cash account (Dr)
-        creditAccount: creditAccount,   // Updated: Agent account (Cr)
-        amount: Number(amount),
-        date,
-        note,
-        type: "receipt",
+      await updateTransaction.mutateAsync({
+        id: transactionId,
+        data: {
+          debitAccount: cashAccounts[0]._id,  // Cash account (Dr)
+          creditAccount: creditAccount,        // Agent account (Cr)
+          amount: Number(amount),
+          date,
+          note,
+          type: "receipt",
+        },
       });
       router.push("/transactions/receipts/all");
     } catch (err) {
@@ -81,13 +109,25 @@ export default function EditReceiptPage() {
     }
   };
 
+  const isLoading = isLoadingTransaction || isLoadingAgents || isLoadingCash;
+
   return (
     <Layout>
       <div className="max-w-xl mx-auto py-6">
         <h1 className="text-2xl font-bold mb-4">Edit Receipt</h1>
 
-        {loading ? (
-          <p className="text-center text-gray-500">Loading...</p>
+        {isLoading ? (
+          <div className="bg-white p-6 rounded-lg shadow border border-gray-200">
+            <p className="text-center text-gray-500">Loading...</p>
+          </div>
+        ) : !transaction ? (
+          <div className="bg-white p-6 rounded-lg shadow border border-gray-200">
+            <p className="text-center text-red-500">Receipt not found</p>
+          </div>
+        ) : !cashAccounts[0] ? (
+          <div className="bg-white p-6 rounded-lg shadow border border-gray-200">
+            <p className="text-center text-red-500">No cash account found. Please create a cash account first.</p>
+          </div>
         ) : (
           <form
             onSubmit={handleUpdate}
@@ -95,14 +135,17 @@ export default function EditReceiptPage() {
           >
             {/* Agent Select */}
             <div className="space-y-1">
-              <label className="block text-sm font-medium text-gray-700">Agent Account</label>
+              <label className="block text-sm font-medium text-gray-700">
+                Agent Account
+              </label>
               <div className="relative">
                 <UserCircleIcon className="h-5 w-5 absolute top-2.5 left-3 text-gray-400" />
                 <select
-                  value={creditAccount} // Updated: from fromAccount to creditAccount
-                  onChange={(e) => setCreditAccount(e.target.value)} // Updated: from setFromAccount to setCreditAccount
+                  value={creditAccount}
+                  onChange={(e) => setCreditAccount(e.target.value)}
                   required
-                  className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  disabled={updateTransaction.isPending}
+                  className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                 >
                   <option value="">-- Select Agent Account --</option>
                   {agentAccounts.map((acc) => (
@@ -116,7 +159,9 @@ export default function EditReceiptPage() {
 
             {/* Amount */}
             <div className="space-y-1">
-              <label className="block text-sm font-medium text-gray-700">Amount Received</label>
+              <label className="block text-sm font-medium text-gray-700">
+                Amount Received
+              </label>
               <div className="relative">
                 <BanknotesIcon className="h-5 w-5 absolute top-2.5 left-3 text-gray-400" />
                 <input
@@ -124,29 +169,38 @@ export default function EditReceiptPage() {
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
                   required
-                  className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  disabled={updateTransaction.isPending}
+                  className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                   placeholder="Enter amount"
+                  step="0.01"
+                  min="0"
                 />
               </div>
             </div>
 
             {/* Date */}
             <div className="space-y-1">
-              <label className="block text-sm font-medium text-gray-700">Date</label>
+              <label className="block text-sm font-medium text-gray-700">
+                Date
+              </label>
               <div className="relative">
                 <CalendarIcon className="h-5 w-5 absolute top-2.5 left-3 text-gray-400" />
                 <input
                   type="date"
                   value={date}
                   onChange={(e) => setDate(e.target.value)}
-                  className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  required
+                  disabled={updateTransaction.isPending}
+                  className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                 />
               </div>
             </div>
 
             {/* Note */}
             <div className="space-y-1">
-              <label className="block text-sm font-medium text-gray-700">Note</label>
+              <label className="block text-sm font-medium text-gray-700">
+                Note
+              </label>
               <div className="relative">
                 <PencilSquareIcon className="h-5 w-5 absolute top-2.5 left-3 text-gray-400" />
                 <input
@@ -154,18 +208,27 @@ export default function EditReceiptPage() {
                   value={note}
                   onChange={(e) => setNote(e.target.value)}
                   placeholder="Optional note"
-                  className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  disabled={updateTransaction.isPending}
+                  className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                 />
               </div>
             </div>
+
+            {/* Error Message */}
+            {updateTransaction.isError && (
+              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md">
+                Failed to update receipt. Please try again.
+              </div>
+            )}
 
             {/* Submit Button */}
             <div className="pt-4">
               <button
                 type="submit"
-                className="w-full bg-blue-700 hover:bg-blue-800 text-white font-medium py-2 px-4 rounded-md transition"
+                disabled={updateTransaction.isPending}
+                className="w-full bg-blue-700 hover:bg-blue-800 text-white font-medium py-2 px-4 rounded-md transition disabled:bg-blue-400 disabled:cursor-not-allowed"
               >
-                Update Receipt
+                {updateTransaction.isPending ? "Updating..." : "Update Receipt"}
               </button>
             </div>
           </form>
