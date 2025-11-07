@@ -21,7 +21,7 @@ export default function EditPaymentPage() {
 
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [cashAccountId, setCashAccountId] = useState("");
-  const [accountId, setAccountId] = useState(""); // toAccount
+  const [debitAccountId, setDebitAccountId] = useState(""); // Updated: from accountId to debitAccountId
   const [amount, setAmount] = useState("");
   const [date, setDate] = useState("");
   const [note, setNote] = useState("");
@@ -42,7 +42,8 @@ export default function EditPaymentPage() {
         const txnRes = await axios.get(`/api/transactions/${id}`);
         const txn = txnRes.data;
 
-        setAccountId(txn.toAccount?._id || ""); // this is the one we allow user to edit
+        // Updated: For payments, debitAccount is the recipient account
+        setDebitAccountId(txn.debitAccount?._id || ""); // Updated: from toAccount to debitAccount
         setAmount(txn.amount.toString());
         setDate(txn.date.split("T")[0]);
         setNote(txn.note || "");
@@ -69,8 +70,8 @@ export default function EditPaymentPage() {
     e.preventDefault();
     try {
       await axios.put(`/api/transactions/${id}`, {
-        fromAccount: cashAccountId,
-        toAccount: accountId,
+        debitAccount: debitAccountId,  // Updated: Recipient account (Dr)
+        creditAccount: cashAccountId,  // Updated: Cash account (Cr)
         amount: Number(amount),
         date,
         note,
@@ -98,13 +99,13 @@ export default function EditPaymentPage() {
             {/* Account Select */}
             <div className="space-y-1">
               <label className="block text-sm font-medium text-gray-700">
-                Account
+                Account (Recipient)
               </label>
               <div className="relative">
                 <UserCircleIcon className="h-5 w-5 absolute top-2.5 left-3 text-gray-400" />
                 <select
-                  value={accountId}
-                  onChange={(e) => setAccountId(e.target.value)}
+                  value={debitAccountId} // Updated: from accountId to debitAccountId
+                  onChange={(e) => setDebitAccountId(e.target.value)} // Updated: from setAccountId to setDebitAccountId
                   required
                   className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
                 >

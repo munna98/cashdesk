@@ -25,7 +25,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       account: {
         name: t.debitAccount?.name || "Unknown", // Updated: from toAccount to debitAccount
       },
-    }));
+    })); 
 
     res.status(200).json(formatted);
   } catch (err: any) {
