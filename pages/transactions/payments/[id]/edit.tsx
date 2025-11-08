@@ -1,3 +1,4 @@
+// pages/transactions/payments/[id]/edit.tsx - Fixed with effectedAccount
 import Layout from "@/components/layout/Layout";
 import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
@@ -20,12 +21,14 @@ export default function EditPaymentPage() {
   const { id } = router.query;
 
   const [accounts, setAccounts] = useState<Account[]>([]);
+  const [agentAccounts, setAgentAccounts] = useState<Account[]>([]);
   const [cashAccountId, setCashAccountId] = useState("");
-  const [debitAccountId, setDebitAccountId] = useState(""); // Updated: from accountId to debitAccountId
+  const [debitAccountId, setDebitAccountId] = useState("");
+  const [effectedAccountId, setEffectedAccountId] = useState(""); // Agent account for clearing
   const [amount, setAmount] = useState("");
   const [date, setDate] = useState("");
   const [note, setNote] = useState("");
-  const [type, setType] = useState("payment");
+  const [selectedAccountType, setSelectedAccountType] = useState("");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -33,7 +36,7 @@ export default function EditPaymentPage() {
 
     const fetchData = async () => {
       try {
-        // Get cash account first
+        // Get cash account
         const cashRes = await axios.get("/api/accounts?type=cash");
         const cashId = cashRes.data?.[0]?._id || "";
         setCashAccountId(cashId);
@@ -42,19 +45,28 @@ export default function EditPaymentPage() {
         const txnRes = await axios.get(`/api/transactions/${id}`);
         const txn = txnRes.data;
 
-        // Updated: For payments, debitAccount is the recipient account
-        setDebitAccountId(txn.debitAccount?._id || ""); // Updated: from toAccount to debitAccount
+        setDebitAccountId(txn.debitAccount?._id || "");
         setAmount(txn.amount.toString());
         setDate(txn.date.split("T")[0]);
         setNote(txn.note || "");
-        setType(txn.type || "payment");
+        setSelectedAccountType(txn.debitAccount?.type || "");
 
-        // Fetch all accounts and filter out cash
-        const allAccounts = await axios.get("/api/accounts");
-        const filtered = allAccounts.data.filter(
+        // If it's a recipient payment, try to find the related journal to get effectedAccount
+        if (txn.debitAccount?.type === "recipient" && txn.relatedTransactionId) {
+          const relatedJournal = await axios.get(`/api/transactions/${txn.relatedTransactionId}`);
+          setEffectedAccountId(relatedJournal.data.debitAccount._id); // Agent account from clearing journal
+        }
+
+        // Fetch all accounts (exclude cash)
+        const allAccountsRes = await axios.get("/api/accounts");
+        const filtered = allAccountsRes.data.filter(
           (acc: Account) => acc._id !== cashId
         );
         setAccounts(filtered);
+
+        // Get agent accounts for the dropdown
+        const agentsRes = await axios.get("/api/accounts?type=agent");
+        setAgentAccounts(agentsRes.data);
       } catch (error) {
         console.error("Error loading data:", error);
         alert("Failed to load payment");
@@ -66,21 +78,46 @@ export default function EditPaymentPage() {
     fetchData();
   }, [id]);
 
+  // Update selected account type when debitAccountId changes
+  useEffect(() => {
+    const selected = accounts.find((acc) => acc._id === debitAccountId);
+    setSelectedAccountType(selected?.type || "");
+    
+    // Reset effectedAccount if changing to non-recipient
+    if (selected?.type !== "recipient") {
+      setEffectedAccountId("");
+    }
+  }, [debitAccountId, accounts]);
+
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Validate recipient payment has effectedAccount
+    if (selectedAccountType === "recipient" && !effectedAccountId) {
+      alert("Please select a 'From Agent' for recipient payments.");
+      return;
+    }
+
     try {
-      await axios.put(`/api/transactions/${id}`, {
-        debitAccount: debitAccountId,  // Updated: Recipient account (Dr)
-        creditAccount: cashAccountId,  // Updated: Cash account (Cr)
+      const payload: any = {
+        debitAccount: debitAccountId,
+        creditAccount: cashAccountId,
         amount: Number(amount),
         date,
         note,
-        type,
-      });
+        type: "payment",
+      };
+
+      // Only include effectedAccount if it's a recipient payment
+      if (selectedAccountType === "recipient") {
+        payload.effectedAccount = effectedAccountId;
+      }
+
+      await axios.put(`/api/transactions/${id}`, payload);
       router.push("/transactions/payments/all");
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error updating payment:", err);
-      alert("Failed to update payment.");
+      alert(err.response?.data?.error || "Failed to update payment.");
     }
   };
 
@@ -96,16 +133,16 @@ export default function EditPaymentPage() {
             onSubmit={handleUpdate}
             className="bg-white p-6 rounded-lg shadow space-y-6 border border-gray-200"
           >
-            {/* Account Select */}
+            {/* To Account (Recipient) */}
             <div className="space-y-1">
               <label className="block text-sm font-medium text-gray-700">
-                Account (Recipient)
+                To Account (Recipient)
               </label>
               <div className="relative">
                 <UserCircleIcon className="h-5 w-5 absolute top-2.5 left-3 text-gray-400" />
                 <select
-                  value={debitAccountId} // Updated: from accountId to debitAccountId
-                  onChange={(e) => setDebitAccountId(e.target.value)} // Updated: from setAccountId to setDebitAccountId
+                  value={debitAccountId}
+                  onChange={(e) => setDebitAccountId(e.target.value)}
                   required
                   className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
                 >
@@ -118,6 +155,34 @@ export default function EditPaymentPage() {
                 </select>
               </div>
             </div>
+
+            {/* From Agent (only if To Account is a recipient) */}
+            {selectedAccountType === "recipient" && (
+              <div className="space-y-1">
+                <label className="block text-sm font-medium text-gray-700">
+                  From Agent <span className="text-red-500">*</span>
+                </label>
+                <div className="relative">
+                  <UserCircleIcon className="h-5 w-5 absolute top-2.5 left-3 text-gray-400" />
+                  <select
+                    value={effectedAccountId}
+                    onChange={(e) => setEffectedAccountId(e.target.value)}
+                    required
+                    className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  >
+                    <option value="">-- Select Agent --</option>
+                    {agentAccounts.map((agent: Account) => (
+                      <option key={agent._id} value={agent._id}>
+                        {agent.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  This will update the journal entry to clear the agent's account
+                </p>
+              </div>
+            )}
 
             {/* Amount */}
             <div className="space-y-1">
