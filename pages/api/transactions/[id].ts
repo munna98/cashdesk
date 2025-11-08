@@ -1,133 +1,8 @@
-// // pages/api/transactions/[id].ts - Updated with cascade delete
-// import { NextApiRequest, NextApiResponse } from "next";
-// import dbConnect from "@/lib/mongodb";
-// import Transaction from "@/models/Transaction";
-
-// export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-//   await dbConnect();
-
-//   const {
-//     query: { id },
-//     method,
-//   } = req;
-
-//   try {
-//     const transaction = await Transaction.findById(id)
-//       .populate("fromAccount", "name")
-//       .populate("toAccount", "name");
-
-//     if (!transaction) {
-//       return res.status(404).json({ message: "Transaction not found" });
-//     }
-
-//     switch (method) {
-//       case "GET":
-//         return res.status(200).json(transaction);
-
-//       case "PUT": {
-//         const { fromAccount, toAccount, amount, date, note, commissionAmount } = req.body;
-
-//         if (!["receipt", "payment"].includes(transaction.type)) {
-//           return res.status(400).json({ message: "Invalid transaction type" });
-//         }
-
-//         // If updating a receipt, handle commission payment update
-//         if (transaction.type === "receipt") {
-//           const oldCommission = transaction.commissionAmount || 0;
-//           const newCommission = commissionAmount || 0;
-
-//           // Find existing commission payment for this receipt
-//           const existingCommissionPayment = await Transaction.findOne({
-//             note: { $regex: `Commission for receipt ${transaction.transactionNumber}` }
-//           });
-
-//           if (oldCommission > 0 && existingCommissionPayment) {
-//             if (newCommission > 0) {
-//               // Update existing commission payment
-//               existingCommissionPayment.amount = newCommission;
-//               existingCommissionPayment.date = date;
-//               await existingCommissionPayment.save();
-//             } else {
-//               // Delete commission payment if new commission is 0
-//               await existingCommissionPayment.deleteOne();
-//             }
-//           } else if (newCommission > 0) {
-//             // Create new commission payment if it didn't exist
-//             const commissionAccount = await Transaction.findOne({ name: "Commission" });
-//             if (commissionAccount) {
-//               const Counter = (await import("@/models/Counter")).default;
-//               const counter = await Counter.findByIdAndUpdate(
-//                 { _id: "payment" },
-//                 { $inc: { seq: 1 } },
-//                 { new: true, upsert: true }
-//               );
-//               const year = new Date().getFullYear();
-//               const commissionTxnNumber = `PMT-${year}-${counter.seq.toString().padStart(5, "0")}`;
-
-//               await Transaction.create({
-//                 transactionNumber: commissionTxnNumber,
-//                 fromAccount: toAccount, // cash account
-//                 toAccount: commissionAccount._id,
-//                 amount: newCommission,
-//                 date,
-//                 note: `Commission for receipt ${transaction.transactionNumber}`,
-//                 type: "payment",
-//               });
-//             }
-//           }
-//         }
-
-//         // Update the main transaction
-//         transaction.fromAccount = fromAccount;
-//         transaction.toAccount = toAccount;
-//         transaction.amount = amount;
-//         transaction.date = date;
-//         transaction.note = note;
-//         if (transaction.type === "receipt") {
-//           transaction.commissionAmount = commissionAmount || 0;
-//         }
-
-//         const updated = await transaction.save();
-//         return res.status(200).json(updated);
-//       }
-
-//       case "DELETE": {
-//         // 🔥 CRITICAL: If deleting a receipt, also delete its commission payment
-//         if (transaction.type === "receipt" && transaction.commissionAmount > 0) {
-//           // Find and delete the related commission payment
-//           const commissionPayment = await Transaction.findOne({
-//             note: { $regex: `Commission for receipt ${transaction.transactionNumber}` },
-//             type: "payment"
-//           });
-
-//           if (commissionPayment) {
-//             await commissionPayment.deleteOne();
-//             console.log(`✅ Deleted commission payment ${commissionPayment.transactionNumber} for receipt ${transaction.transactionNumber}`);
-//           }
-//         }
-
-//         // Delete the main transaction
-//         await transaction.deleteOne();
-        
-//         return res.status(200).json({ 
-//           message: `${transaction.type} deleted successfully`,
-//           deletedTransactions: transaction.type === "receipt" ? 2 : 1 // receipt + commission or just payment
-//         });
-//       }
-
-//       default:
-//         res.setHeader("Allow", ["GET", "PUT", "DELETE"]);
-//         return res.status(405).json({ message: `Method ${method} Not Allowed` });
-//     }
-//   } catch (error: any) {
-//     console.error("Transaction API error:", error);
-//     return res.status(500).json({ error: error.message });
-//   }
-// }
-// pages/api/transactions/[id].ts - Updated delete with cascade
+// pages/api/transactions/[id].ts - Updated PUT handler for payments
 import { NextApiRequest, NextApiResponse } from "next";
 import dbConnect from "@/lib/mongodb";
 import Transaction from "@/models/Transaction";
+import Account from "@/models/Account";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   await dbConnect();
@@ -139,8 +14,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   try {
     const transaction = await Transaction.findById(id)
-      .populate("debitAccount", "name")  // Updated: from fromAccount to debitAccount
-      .populate("creditAccount", "name"); // Updated: from toAccount to creditAccount
+      .populate("debitAccount", "name type")
+      .populate("creditAccount", "name type");
 
     if (!transaction) {
       return res.status(404).json({ message: "Transaction not found" });
@@ -151,35 +26,185 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(200).json(transaction);
 
       case "PUT": {
-        const { debitAccount, creditAccount, amount, date, note, commissionAmount } = req.body;
+        const { debitAccount, creditAccount, amount, date, note, effectedAccount } = req.body;
 
         if (!["receipt", "payment", "journalentry"].includes(transaction.type)) {
           return res.status(400).json({ message: "Invalid transaction type" });
         }
 
-        // Update the transaction
-        transaction.debitAccount = debitAccount;    // Updated: from fromAccount to debitAccount
-        transaction.creditAccount = creditAccount;  // Updated: from toAccount to creditAccount
-        transaction.amount = amount;
-        transaction.date = date;
-        transaction.note = note;
-        
-        if (transaction.type === "receipt") {
-          transaction.commissionAmount = commissionAmount || 0;
+        // ============= PAYMENT HANDLING =============
+        if (transaction.type === "payment") {
+          // Get the old debit account to check if it was a recipient payment
+          const oldDebitAccount = await Account.findById(transaction.debitAccount);
+          const newDebitAccount = await Account.findById(debitAccount);
+          
+          const wasRecipientPayment = oldDebitAccount?.type === "recipient";
+          const isRecipientPayment = newDebitAccount?.type === "recipient";
+
+          // Update the main payment transaction
+          transaction.debitAccount = debitAccount;
+          transaction.creditAccount = creditAccount;
+          transaction.amount = amount;
+          transaction.date = date;
+          transaction.note = note;
+
+          await transaction.save();
+
+          // Handle related clearing journal
+          if (wasRecipientPayment || isRecipientPayment) {
+            // Find existing related journal
+            const relatedJournal = await Transaction.findOne({
+              relatedTransactionId: transaction._id,
+              type: "journalentry"
+            });
+
+            if (relatedJournal) {
+              if (!isRecipientPayment) {
+                // Changed from recipient to non-recipient: delete journal
+                await relatedJournal.deleteOne();
+                transaction.relatedTransactionId = null;
+                await transaction.save();
+              } else {
+                // Update existing journal
+                if (effectedAccount) {
+                  relatedJournal.debitAccount = effectedAccount;  // Agent (Dr)
+                  relatedJournal.creditAccount = debitAccount;     // Recipient (Cr)
+                  relatedJournal.amount = amount;
+                  relatedJournal.date = date;
+                  relatedJournal.note = `Agent clearing for payment ${transaction.transactionNumber}`;
+                  await relatedJournal.save();
+                } else {
+                  return res.status(400).json({ 
+                    error: "effectedAccount is required for recipient payments" 
+                  });
+                }
+              }
+            } else if (isRecipientPayment) {
+              // Create new journal for new recipient payment
+              if (!effectedAccount) {
+                return res.status(400).json({ 
+                  error: "effectedAccount is required for recipient payments" 
+                });
+              }
+
+              const Counter = (await import("@/models/Counter")).default;
+              const counter = await Counter.findByIdAndUpdate(
+                { _id: "journalentry" },
+                { $inc: { seq: 1 } },
+                { new: true, upsert: true }
+              );
+              
+              const year = new Date().getFullYear();
+              const journalNumber = `JNL-${year}-${counter.seq.toString().padStart(5, "0")}`;
+
+              const newJournal = await Transaction.create({
+                transactionNumber: journalNumber,
+                debitAccount: effectedAccount,   // Agent (Dr)
+                creditAccount: debitAccount,     // Recipient (Cr)
+                amount,
+                date,
+                note: `Agent clearing for payment ${transaction.transactionNumber}`,
+                type: "journalentry",
+                relatedTransactionId: transaction._id,
+              });
+
+              transaction.relatedTransactionId = newJournal._id;
+              await transaction.save();
+            }
+          }
+
+          return res.status(200).json(transaction);
         }
 
-        const updated = await transaction.save();
-        
-        // TODO: Handle updating related journal entries
-        // This is complex - might want to delete old journal and create new one
-        
-        return res.status(200).json(updated);
+        // ============= RECEIPT HANDLING =============
+        if (transaction.type === "receipt") {
+          const oldCommission = transaction.commissionAmount || 0;
+          const newCommission = req.body.commissionAmount || 0;
+
+          // Update main transaction
+          transaction.debitAccount = debitAccount;
+          transaction.creditAccount = creditAccount;
+          transaction.amount = amount;
+          transaction.date = date;
+          transaction.note = note;
+          transaction.commissionAmount = newCommission;
+
+          await transaction.save();
+
+          // Handle commission journal
+          const relatedJournal = await Transaction.findOne({
+            relatedTransactionId: transaction._id,
+            type: "journalentry"
+          });
+
+          if (relatedJournal) {
+            if (newCommission > 0) {
+              // Update existing commission journal
+              relatedJournal.amount = newCommission;
+              relatedJournal.date = date;
+              await relatedJournal.save();
+            } else {
+              // Delete commission journal if new commission is 0
+              await relatedJournal.deleteOne();
+              transaction.relatedTransactionId = null;
+              await transaction.save();
+            }
+          } else if (newCommission > 0) {
+            // Create new commission journal
+            const commissionAccount = await Account.findOne({
+              name: "Commission",
+              type: "income"
+            });
+
+            if (commissionAccount) {
+              const Counter = (await import("@/models/Counter")).default;
+              const counter = await Counter.findByIdAndUpdate(
+                { _id: "journalentry" },
+                { $inc: { seq: 1 } },
+                { new: true, upsert: true }
+              );
+              
+              const year = new Date().getFullYear();
+              const journalNumber = `JNL-${year}-${counter.seq.toString().padStart(5, "0")}`;
+
+              const newJournal = await Transaction.create({
+                transactionNumber: journalNumber,
+                debitAccount: creditAccount,           // Agent (Dr)
+                creditAccount: commissionAccount._id,  // Commission (Cr)
+                amount: newCommission,
+                date,
+                note: `Commission for receipt ${transaction.transactionNumber}`,
+                type: "journalentry",
+                relatedTransactionId: transaction._id,
+              });
+
+              transaction.relatedTransactionId = newJournal._id;
+              await transaction.save();
+            }
+          }
+
+          return res.status(200).json(transaction);
+        }
+
+        // ============= JOURNAL ENTRY HANDLING =============
+        if (transaction.type === "journalentry") {
+          transaction.debitAccount = debitAccount;
+          transaction.creditAccount = creditAccount;
+          transaction.amount = amount;
+          transaction.date = date;
+          transaction.note = note;
+
+          const updated = await transaction.save();
+          return res.status(200).json(updated);
+        }
+
+        return res.status(400).json({ message: "Invalid transaction type" });
       }
 
       case "DELETE": {
         let deletedCount = 1;
 
-        // Find and delete related transaction (journal entry)
+        // Find and delete related transaction
         if (transaction.relatedTransactionId) {
           const relatedTxn = await Transaction.findById(transaction.relatedTransactionId);
           
@@ -190,7 +215,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           }
         }
 
-        // Also check if this transaction is referenced by another (reverse relationship)
+        // Check if this transaction is referenced by another
         const referencingTxn = await Transaction.findOne({
           relatedTransactionId: transaction._id
         });
